@@ -9,7 +9,7 @@
   },
   "license": "UNLICENSED",
   "dependencies": {
-    "@google/genai": "^0.3.1",
+    "@google/genai": "^2.11.0",
     "dotenv": "^16.4.5",
     "googleapis": "^144.0.0"
   }
