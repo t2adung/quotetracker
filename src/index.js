@@ -18,8 +18,15 @@ const STATUS_DA_TRICH_QUOTE = 'Đã trích quote';
 //                            gọi lại Gemini trích quote — dùng khi lần chạy trước bị lỗi/hết
 //                            quota giữa chừng lúc sinh ảnh, để không tốn token trích quote lại
 //   --image-scope=quote|video  sinh 1 ảnh/quote (mặc định) hay chỉ 1 ảnh dùng chung cho cả video
+//   --image-topic=<tên chủ đề> chọn style ảnh trong src/image-prompts/ (mặc định "quote")
 function parseArgs(argv) {
-  const args = { topic: 'quote', genImages: false, resumeImages: false, imageScope: 'quote' };
+  const args = {
+    topic: 'quote',
+    genImages: false,
+    resumeImages: false,
+    imageScope: 'quote',
+    imageTopic: 'quote',
+  };
   for (const arg of argv) {
     if (arg === '--gen-images') {
       args.genImages = true;
@@ -29,6 +36,8 @@ function parseArgs(argv) {
       args.topic = arg.slice('--topic='.length);
     } else if (arg.startsWith('--image-scope=')) {
       args.imageScope = arg.slice('--image-scope='.length);
+    } else if (arg.startsWith('--image-topic=')) {
+      args.imageTopic = arg.slice('--image-topic='.length);
     }
   }
   return args;
@@ -40,10 +49,10 @@ function parseArgs(argv) {
 //     truyền ảnh liền trước làm ảnh tham chiếu cho ảnh kế tiếp, để cả chuỗi ảnh cùng chủ đề/bối
 //     cảnh nhưng tiến triển tuần tự, tạo cảm giác như đang xem 1 video chuyển động.
 // Lỗi ở 1 quote/1 ảnh chỉ log lại, không chặn các quote còn lại.
-async function generateImagesForQuotes(quotes, imageScope) {
+async function generateImagesForQuotes(quotes, imageScope, imageTopic) {
   if (quotes.length === 0) return;
 
-  const sceneAnchor = pickSceneAnchor();
+  const sceneAnchor = pickSceneAnchor(imageTopic);
 
   if (imageScope === 'video') {
     try {
@@ -55,6 +64,7 @@ async function generateImagesForQuotes(quotes, imageScope) {
         sequenceIndex: 1,
         totalInSequence: 1,
         previousImageBytes: null,
+        topic: imageTopic,
       });
       for (const q of quotes) {
         await updateQuoteImageFilename(q.stt, filename);
@@ -78,6 +88,7 @@ async function generateImagesForQuotes(quotes, imageScope) {
         sequenceIndex: i + 1,
         totalInSequence: quotes.length,
         previousImageBytes,
+        topic: imageTopic,
       });
       await updateQuoteImageFilename(q.stt, filename);
       previousImageBytes = imageBytes;
@@ -90,7 +101,7 @@ async function generateImagesForQuotes(quotes, imageScope) {
 
 console.log('Config OK');
 
-async function runResumeImages(imageScope) {
+async function runResumeImages(imageScope, imageTopic) {
   let missing;
   try {
     missing = await getQuotesMissingImages();
@@ -115,13 +126,13 @@ async function runResumeImages(imageScope) {
   for (const sttVideo of sttVideos) {
     const quotesOfVideo = bySttVideo[sttVideo];
     console.log(`\n▶ Sinh ảnh còn thiếu cho video STT ${sttVideo} (${quotesOfVideo.length} quote)`);
-    await generateImagesForQuotes(quotesOfVideo, imageScope);
+    await generateImagesForQuotes(quotesOfVideo, imageScope, imageTopic);
   }
 
   console.log('\nHoàn tất sinh ảnh còn thiếu.');
 }
 
-async function runExtractQuotes(topic, genImages, imageScope) {
+async function runExtractQuotes(topic, genImages, imageScope, imageTopic) {
   let videos;
   try {
     videos = await getUnprocessedVideos();
@@ -144,7 +155,7 @@ async function runExtractQuotes(topic, genImages, imageScope) {
       console.log('  Đã ghi quote vào tab Quotes.');
 
       if (genImages) {
-        await generateImagesForQuotes(createdQuotes, imageScope);
+        await generateImagesForQuotes(createdQuotes, imageScope, imageTopic);
       }
 
       await updateVideoStatus(video.stt, STATUS_DA_TRICH_QUOTE);
@@ -162,21 +173,21 @@ async function runExtractQuotes(topic, genImages, imageScope) {
 }
 
 async function main() {
-  const { topic, genImages, resumeImages, imageScope } = parseArgs(process.argv.slice(2));
+  const { topic, genImages, resumeImages, imageScope, imageTopic } = parseArgs(process.argv.slice(2));
 
   if (resumeImages) {
     console.log('Chế độ --resume-images: chỉ sinh ảnh còn thiếu, không gọi lại Gemini trích quote.');
-    await runResumeImages(imageScope);
+    await runResumeImages(imageScope, imageTopic);
     return;
   }
 
   if (genImages) {
     console.log(
-      `Đã bật sinh ảnh nền (--gen-images, image-scope=${imageScope}) — sẽ gọi thêm Gemini Flash Image.`
+      `Đã bật sinh ảnh nền (--gen-images, image-scope=${imageScope}, image-topic=${imageTopic}) — sẽ gọi thêm Gemini Flash Image.`
     );
   }
 
-  await runExtractQuotes(topic, genImages, imageScope);
+  await runExtractQuotes(topic, genImages, imageScope, imageTopic);
 }
 
 main();

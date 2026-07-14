@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { GoogleGenAI } = require('@google/genai');
 const config = require('./config');
+const { getImageStyle } = require('./image-prompts');
 
 // Model sinh ảnh — đang tạm dùng Gemini 2.5 Flash Image ("Nano Banana"), đổi sang
 // "gemini-3.1-flash-image" (Nano Banana 2) khi hết hạn dùng thử/điều kiện billing phù hợp.
@@ -9,37 +10,20 @@ const IMAGE_MODEL = 'gemini-2.5-flash-image';
 
 const OUTPUT_DIR = path.join(__dirname, '..', 'output', 'images');
 
-// Giữ ngắn gọn dạng cụm từ (không viết câu đầy đủ) để giảm token input mỗi lần gọi, vẫn đủ
-// các ràng buộc bắt buộc: 1 tấm ảnh liền mạch (không phải ảnh ghép 2 nửa/mảng màu rời rạc),
-// người châu Á (ưu tiên Việt Nam) chỉ chiếm khoảng 1/4 khung hình chứ không bị cắt cụt còn 1
-// mẩu nhỏ, tông pastel sáng, không chèn chữ vào ảnh.
-const STYLE_PROMPT_SUFFIX = `Style: cinematic photo, bright soft pastel tones, minimal, airy, peaceful — 1 single cohesive real photograph filling the whole frame (NOT a collage, NOT split panels, NOT a separate flat solid-color block glued onto part of the frame).
-Person (if shown): Asian, ideally Vietnamese, appearance and styling. Whole figure visible, small in the frame — occupying roughly 1/4 of the frame — not cropped by the frame edge, not just a hand/shoulder sliver. Shown from behind, from the side, or at a distance so the face is not clearly recognizable.
-Any empty space for a future text overlay must come naturally from the scene itself (open sky, distant blurred background) — never as an artificial separate rectangle.
-No text: absolutely no letters, words, numbers, captions, watermark, or typography anywhere in the image.`;
+const DEFAULT_IMAGE_TOPIC = 'quote';
 
-// Vài "bối cảnh gốc" thiên về hành động thực tế đời thường (nấu ăn, vẽ tranh, đi dạo...) để
-// chọn ngẫu nhiên 1 cái dùng chung cho toàn bộ ảnh của 1 video — đảm bảo các ảnh trong cùng
-// video có cùng chủ đề/bối cảnh/hành động thay vì mỗi ảnh 1 nơi khác nhau.
-const SCENE_ANCHORS = [
-  'cooking a simple meal in a bright pastel-toned kitchen',
-  'painting on a canvas outdoors in a pastel-lit garden',
-  'walking along a scenic pastel-colored trail in nature',
-  'arranging fresh flowers at a pastel-toned table',
-  'brewing tea by a large window with soft pastel light',
-  'tending potted plants on a sunny pastel balcony',
-];
-
-function pickSceneAnchor() {
-  return SCENE_ANCHORS[Math.floor(Math.random() * SCENE_ANCHORS.length)];
+function pickSceneAnchor(topic = DEFAULT_IMAGE_TOPIC) {
+  const { sceneAnchors } = getImageStyle(topic);
+  return sceneAnchors[Math.floor(Math.random() * sceneAnchors.length)];
 }
 
-function buildImagePrompt({ quoteText, sceneAnchor, sequenceIndex, totalInSequence }) {
+function buildImagePrompt({ quoteText, sceneAnchor, sequenceIndex, totalInSequence, topic }) {
+  const { styleSuffix } = getImageStyle(topic);
   return `Frame ${sequenceIndex}/${totalInSequence} of 1 continuous sequence, same short video.
 Scene (identical every frame): ${sceneAnchor}.
 Same subject/outfit/lighting/color tone as previous frame; only pose/camera shifts slightly — continuous motion feel, not unrelated photos.
 Mood to reflect: "${quoteText}"
-${STYLE_PROMPT_SUFFIX}`;
+${styleSuffix}`;
 }
 
 function filenameForStt(stt) {
@@ -54,9 +38,10 @@ async function generateBackgroundImage({
   sequenceIndex,
   totalInSequence,
   previousImageBytes,
+  topic = DEFAULT_IMAGE_TOPIC,
 }) {
   const ai = new GoogleGenAI({ apiKey: config.GEMINI_API_KEY });
-  const prompt = buildImagePrompt({ quoteText, sceneAnchor, sequenceIndex, totalInSequence });
+  const prompt = buildImagePrompt({ quoteText, sceneAnchor, sequenceIndex, totalInSequence, topic });
 
   const parts = [];
   if (previousImageBytes) {
