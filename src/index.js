@@ -1,7 +1,7 @@
 require('./config');
 const { getUnprocessedVideos, appendQuotes, updateVideoStatus, updateQuoteImageFilename } = require('./sheets');
 const { extractQuotes } = require('./gemini');
-const { generateBackgroundImage } = require('./image-gen');
+const { generateBackgroundImage, pickSceneAnchor } = require('./image-gen');
 
 const STATUS_DA_TRICH_QUOTE = 'Đã trích quote';
 
@@ -51,10 +51,25 @@ async function main() {
       console.log('  Đã ghi quote vào tab Quotes.');
 
       if (genImages) {
-        for (const q of createdQuotes) {
+        // Chọn 1 bối cảnh dùng chung cho cả video, và truyền ảnh liền trước làm ảnh tham
+        // chiếu cho ảnh kế tiếp — để cả chuỗi ảnh của 1 video cùng chủ đề/bối cảnh nhưng
+        // tiến triển tuần tự, tạo cảm giác như đang xem 1 video chuyển động.
+        const sceneAnchor = pickSceneAnchor();
+        let previousImageBytes = null;
+
+        for (let i = 0; i < createdQuotes.length; i++) {
+          const q = createdQuotes[i];
           try {
-            const filename = await generateBackgroundImage(q.stt, q.quote);
+            const { filename, imageBytes } = await generateBackgroundImage({
+              stt: q.stt,
+              quoteText: q.quote,
+              sceneAnchor,
+              sequenceIndex: i + 1,
+              totalInSequence: createdQuotes.length,
+              previousImageBytes,
+            });
             await updateQuoteImageFilename(q.stt, filename);
+            previousImageBytes = imageBytes;
             console.log(`  Đã sinh ảnh nền: ${filename}`);
           } catch (err) {
             console.error(`  Lỗi khi sinh ảnh nền cho quote STT ${q.stt}: ${err.message}`);

@@ -85,10 +85,15 @@ Các quote còn lại vẫn là trích nguyên văn từ video như trước.
 
 ## Sinh ảnh nền cho quote (mặc định tắt)
 
-`src/image-gen.js` có hàm `generateBackgroundImage(stt, quoteText)` gọi model
-`gemini-3.1-flash-image` để sinh 1 ảnh nền (9:16) theo nội dung quote + phong cách cố định
-(ảnh người quay lưng/không lộ mặt, khung cảnh thiên nhiên, tông ấm), lưu vào
+`src/image-gen.js` có hàm `generateBackgroundImage(...)` gọi model `gemini-3.1-flash-image` để
+sinh 1 ảnh nền (9:16) theo nội dung quote + phong cách cố định (chỉ hé lộ 1 phần nhỏ của người,
+không lộ mặt, tông pastel sáng, chừa khoảng trống để chèn chữ quote sau này), lưu vào
 `output/images/quote_XXX.png` (STT quote 3 chữ số, khớp cột STT trong tab Quotes).
+
+Toàn bộ ảnh của **cùng 1 video** dùng chung 1 bối cảnh (chọn ngẫu nhiên trong `SCENE_ANCHORS`),
+và mỗi ảnh sau được sinh kèm ảnh ngay trước làm ảnh tham chiếu — để cả chuỗi ảnh giữ đúng nhân
+vật/bối cảnh/ánh sáng, chỉ tiến triển nhẹ qua từng khung hình, tạo cảm giác như đang xem 1 đoạn
+video chuyển động khi ghép các ảnh lại theo thứ tự quote.
 
 Bước này **mặc định tắt** trong `src/index.js` — chỉ chạy khi bật cờ `--gen-images` trên dòng
 lệnh, vì đây là API tính phí riêng, tốn thêm 10-15 lần gọi/video. Khi đã tính chi phí xong và
