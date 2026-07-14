@@ -12,13 +12,14 @@ const { generateBackgroundImage, pickSceneAnchor } = require('./image-gen');
 const STATUS_DA_TRICH_QUOTE = 'Đã trích quote';
 
 // Đọc tuỳ chọn dòng lệnh:
-//   --topic=<tên chủ đề>   chọn prompt trong src/prompts/ (mặc định "quote")
-//   --gen-images           bật sinh ảnh nền cho từng quote (mặc định TẮT — API tính phí riêng)
-//   --resume-images        chỉ sinh ảnh còn thiếu cho các quote đã có sẵn trong Sheet, KHÔNG
-//                          gọi lại Gemini trích quote — dùng khi lần chạy trước bị lỗi/hết
-//                          quota giữa chừng lúc sinh ảnh, để không tốn token trích quote lại
+//   --topic=<tên chủ đề>     chọn prompt trong src/prompts/ (mặc định "quote")
+//   --gen-images             bật sinh ảnh nền cho từng quote (mặc định TẮT — API tính phí riêng)
+//   --resume-images          chỉ sinh ảnh còn thiếu cho các quote đã có sẵn trong Sheet, KHÔNG
+//                            gọi lại Gemini trích quote — dùng khi lần chạy trước bị lỗi/hết
+//                            quota giữa chừng lúc sinh ảnh, để không tốn token trích quote lại
+//   --image-scope=quote|video  sinh 1 ảnh/quote (mặc định) hay chỉ 1 ảnh dùng chung cho cả video
 function parseArgs(argv) {
-  const args = { topic: 'quote', genImages: false, resumeImages: false };
+  const args = { topic: 'quote', genImages: false, resumeImages: false, imageScope: 'quote' };
   for (const arg of argv) {
     if (arg === '--gen-images') {
       args.genImages = true;
@@ -26,17 +27,45 @@ function parseArgs(argv) {
       args.resumeImages = true;
     } else if (arg.startsWith('--topic=')) {
       args.topic = arg.slice('--topic='.length);
+    } else if (arg.startsWith('--image-scope=')) {
+      args.imageScope = arg.slice('--image-scope='.length);
     }
   }
   return args;
 }
 
-// Sinh ảnh nền tuần tự cho 1 danh sách quote (thường là quote của cùng 1 video): chọn 1 bối
-// cảnh dùng chung, và truyền ảnh liền trước làm ảnh tham chiếu cho ảnh kế tiếp — để cả chuỗi
-// ảnh cùng chủ đề/bối cảnh nhưng tiến triển tuần tự, tạo cảm giác như đang xem 1 video chuyển
-// động. Lỗi ở 1 quote chỉ log lại, không chặn các quote còn lại.
-async function generateImagesForQuotes(quotes) {
+// Sinh ảnh nền cho 1 danh sách quote (thường là quote của cùng 1 video).
+//   imageScope === 'video': chỉ sinh đúng 1 ảnh đại diện, dùng chung cho mọi quote trong video.
+//   imageScope === 'quote' (mặc định): sinh 1 ảnh/quote, tuần tự — chọn 1 bối cảnh dùng chung,
+//     truyền ảnh liền trước làm ảnh tham chiếu cho ảnh kế tiếp, để cả chuỗi ảnh cùng chủ đề/bối
+//     cảnh nhưng tiến triển tuần tự, tạo cảm giác như đang xem 1 video chuyển động.
+// Lỗi ở 1 quote/1 ảnh chỉ log lại, không chặn các quote còn lại.
+async function generateImagesForQuotes(quotes, imageScope) {
+  if (quotes.length === 0) return;
+
   const sceneAnchor = pickSceneAnchor();
+
+  if (imageScope === 'video') {
+    try {
+      const firstQuote = quotes[0];
+      const { filename } = await generateBackgroundImage({
+        stt: firstQuote.stt,
+        quoteText: firstQuote.quote,
+        sceneAnchor,
+        sequenceIndex: 1,
+        totalInSequence: 1,
+        previousImageBytes: null,
+      });
+      for (const q of quotes) {
+        await updateQuoteImageFilename(q.stt, filename);
+      }
+      console.log(`  Đã sinh 1 ảnh dùng chung cho cả video: ${filename}`);
+    } catch (err) {
+      console.error(`  Lỗi khi sinh ảnh chung cho video: ${err.message}`);
+    }
+    return;
+  }
+
   let previousImageBytes = null;
 
   for (let i = 0; i < quotes.length; i++) {
@@ -61,7 +90,7 @@ async function generateImagesForQuotes(quotes) {
 
 console.log('Config OK');
 
-async function runResumeImages() {
+async function runResumeImages(imageScope) {
   let missing;
   try {
     missing = await getQuotesMissingImages();
@@ -86,13 +115,13 @@ async function runResumeImages() {
   for (const sttVideo of sttVideos) {
     const quotesOfVideo = bySttVideo[sttVideo];
     console.log(`\n▶ Sinh ảnh còn thiếu cho video STT ${sttVideo} (${quotesOfVideo.length} quote)`);
-    await generateImagesForQuotes(quotesOfVideo);
+    await generateImagesForQuotes(quotesOfVideo, imageScope);
   }
 
   console.log('\nHoàn tất sinh ảnh còn thiếu.');
 }
 
-async function runExtractQuotes(topic, genImages) {
+async function runExtractQuotes(topic, genImages, imageScope) {
   let videos;
   try {
     videos = await getUnprocessedVideos();
@@ -115,7 +144,7 @@ async function runExtractQuotes(topic, genImages) {
       console.log('  Đã ghi quote vào tab Quotes.');
 
       if (genImages) {
-        await generateImagesForQuotes(createdQuotes);
+        await generateImagesForQuotes(createdQuotes, imageScope);
       }
 
       await updateVideoStatus(video.stt, STATUS_DA_TRICH_QUOTE);
@@ -133,19 +162,21 @@ async function runExtractQuotes(topic, genImages) {
 }
 
 async function main() {
-  const { topic, genImages, resumeImages } = parseArgs(process.argv.slice(2));
+  const { topic, genImages, resumeImages, imageScope } = parseArgs(process.argv.slice(2));
 
   if (resumeImages) {
     console.log('Chế độ --resume-images: chỉ sinh ảnh còn thiếu, không gọi lại Gemini trích quote.');
-    await runResumeImages();
+    await runResumeImages(imageScope);
     return;
   }
 
   if (genImages) {
-    console.log('Đã bật sinh ảnh nền (--gen-images) — mỗi quote sẽ tốn thêm 1 lần gọi Gemini Flash Image.');
+    console.log(
+      `Đã bật sinh ảnh nền (--gen-images, image-scope=${imageScope}) — sẽ gọi thêm Gemini Flash Image.`
+    );
   }
 
-  await runExtractQuotes(topic, genImages);
+  await runExtractQuotes(topic, genImages, imageScope);
 }
 
 main();
