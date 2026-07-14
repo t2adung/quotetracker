@@ -45,6 +45,20 @@ Kết quả: quote mới được ghi vào tab Quotes của Google Sheet, trạn
 cập nhật tương ứng. Script sẽ log tiến độ từng video; nếu 1 video lỗi, script log lỗi và tiếp
 tục video kế tiếp, cuối cùng in tổng kết video nào thành công/lỗi.
 
+### Tuỳ chọn dòng lệnh
+
+```bash
+node src/index.js --topic=quote           # chọn chủ đề prompt trong src/prompts/ (mặc định "quote")
+node src/index.js --gen-images            # bật sinh ảnh nền cho từng quote (mặc định TẮT)
+node src/index.js --topic=quote --gen-images
+```
+
+- `--topic=<tên>`: chọn file prompt tương ứng trong `src/prompts/` (xem mục bên dưới). Không
+  truyền thì mặc định dùng `quote`.
+- `--gen-images`: bật bước sinh ảnh nền bằng Gemini 3.1 Flash Image sau khi ghi quote vào Sheet.
+  **Mặc định tắt** vì đây là API tính phí riêng (10-15 lần gọi/video) — chỉ thêm cờ này khi đã
+  tính toán xong chi phí. Xem điều kiện cần chuẩn bị trước ở mục "Sinh ảnh nền cho quote".
+
 ## Xử lý lỗi thường gặp
 
 - **"Google Sheets API has not been used ... or it is disabled"** → chưa bật Google Sheets API
@@ -69,21 +83,21 @@ Prompt chủ đề `quote` hiện yêu cầu Gemini viết **quote đầu tiên 
 trên tiêu đề video (không phải trích nguyên văn), thu hút người xem và bắt buộc chứa chữ "U40".
 Các quote còn lại vẫn là trích nguyên văn từ video như trước.
 
-## Sinh ảnh nền cho quote (đang tắt, chưa dùng)
+## Sinh ảnh nền cho quote (mặc định tắt)
 
 `src/image-gen.js` có hàm `generateBackgroundImage(stt, quoteText)` gọi model
 `gemini-3.1-flash-image` để sinh 1 ảnh nền (9:16) theo nội dung quote + phong cách cố định
 (ảnh người quay lưng/không lộ mặt, khung cảnh thiên nhiên, tông ấm), lưu vào
 `output/images/quote_XXX.png` (STT quote 3 chữ số, khớp cột STT trong tab Quotes).
 
-Đoạn code gọi hàm này trong `src/index.js` (sau bước ghi quote vào Sheet) đang được **comment
-lại**, chưa chạy tự động — vì đây là API tính phí riêng, tốn thêm 10-15 lần gọi/video, cần tính
-lại chi phí trước khi bật. Khi sẵn sàng:
-1. Mở `src/index.js`, bỏ comment khối vòng lặp `for (const q of createdQuotes) { ... }`
-2. Vào Google Sheet thật, thêm cột `image_filename` ở header hàng 3, cột J của tab `Quotes`
+Bước này **mặc định tắt** trong `src/index.js` — chỉ chạy khi bật cờ `--gen-images` trên dòng
+lệnh, vì đây là API tính phí riêng, tốn thêm 10-15 lần gọi/video. Khi đã tính chi phí xong và
+muốn dùng:
+1. Vào Google Sheet thật, thêm cột `image_filename` ở header hàng 3, cột J của tab `Quotes`
    (chưa có sẵn — sheet mẫu ban đầu chỉ có tới cột I)
-3. Sau khi chạy, upload hàng loạt các file trong `output/images/` vào thư mục Uploads của Canva;
-   Canva Bulk Create sẽ tự khớp ảnh theo tên file trùng với giá trị ở cột `image_filename`
+2. Chạy `node src/index.js --gen-images`
+3. Upload hàng loạt các file trong `output/images/` vào thư mục Uploads của Canva; Canva Bulk
+   Create sẽ tự khớp ảnh theo tên file trùng với giá trị ở cột `image_filename`
 
 `output/` không được commit vào Git (đã thêm vào `.gitignore`).
 
