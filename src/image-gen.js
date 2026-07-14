@@ -3,8 +3,9 @@ const path = require('path');
 const { GoogleGenAI } = require('@google/genai');
 const config = require('./config');
 
-// Model sinh ảnh — Gemini 3.1 Flash Image (nickname "Nano Banana 2")
-const IMAGE_MODEL = 'gemini-3.1-flash-image';
+// Model sinh ảnh — đang tạm dùng Gemini 2.5 Flash Image ("Nano Banana"), đổi sang
+// "gemini-3.1-flash-image" (Nano Banana 2) khi hết hạn dùng thử/điều kiện billing phù hợp.
+const IMAGE_MODEL = 'gemini-2.5-flash-image';
 
 const OUTPUT_DIR = path.join(__dirname, '..', 'output', 'images');
 

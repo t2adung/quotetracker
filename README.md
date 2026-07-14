@@ -56,7 +56,8 @@ node src/index.js --resume-images         # chỉ sinh bù ảnh còn thiếu, k
 
 - `--topic=<tên>`: chọn file prompt tương ứng trong `src/prompts/` (xem mục bên dưới). Không
   truyền thì mặc định dùng `quote`.
-- `--gen-images`: bật bước sinh ảnh nền bằng Gemini 3.1 Flash Image sau khi ghi quote vào Sheet.
+- `--gen-images`: bật bước sinh ảnh nền bằng Gemini Flash Image (xem model đang dùng ở
+  `IMAGE_MODEL` trong `src/image-gen.js`) sau khi ghi quote vào Sheet.
   **Mặc định tắt** vì đây là API tính phí riêng (10-15 lần gọi/video) — chỉ thêm cờ này khi đã
   tính toán xong chi phí. Xem điều kiện cần chuẩn bị trước ở mục "Sinh ảnh nền cho quote".
 - `--resume-images`: dùng khi lần chạy trước bị lỗi/hết quota giữa chừng lúc sinh ảnh (ví dụ hết
@@ -96,9 +97,11 @@ giây đầu video. Các quote còn lại vẫn là trích nguyên văn từ vid
 
 ## Sinh ảnh nền cho quote (mặc định tắt)
 
-`src/image-gen.js` có hàm `generateBackgroundImage(...)` gọi model `gemini-3.1-flash-image` để
-sinh 1 ảnh nền (9:16) theo nội dung quote + phong cách cố định (chỉ hé lộ 1 phần nhỏ của người,
-không lộ mặt, tông pastel sáng, chừa khoảng trống để chèn chữ quote sau này), lưu vào
+`src/image-gen.js` có hàm `generateBackgroundImage(...)` gọi model Gemini Flash Image (hằng số
+`IMAGE_MODEL`, hiện đang tạm dùng `gemini-2.5-flash-image`, sẽ đổi sang `gemini-3.1-flash-image`
+sau khi hết hạn dùng thử) để sinh 1 ảnh nền (9:16) theo nội dung quote + phong cách cố định
+(chỉ hé lộ 1 phần nhỏ của người, không lộ mặt, tông pastel sáng, chừa khoảng trống để chèn chữ
+quote sau này), lưu vào
 `output/images/quote_XXX.png` (STT quote 3 chữ số, khớp cột STT trong tab Quotes).
 
 Toàn bộ ảnh của **cùng 1 video** dùng chung 1 bối cảnh (chọn ngẫu nhiên trong `SCENE_ANCHORS`),

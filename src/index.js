@@ -142,7 +142,7 @@ async function main() {
   }
 
   if (genImages) {
-    console.log('Đã bật sinh ảnh nền (--gen-images) — mỗi quote sẽ tốn thêm 1 lần gọi Gemini 3.1 Flash Image.');
+    console.log('Đã bật sinh ảnh nền (--gen-images) — mỗi quote sẽ tốn thêm 1 lần gọi Gemini Flash Image.');
   }
 
   await runExtractQuotes(topic, genImages);
