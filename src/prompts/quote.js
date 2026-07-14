@@ -9,16 +9,22 @@ cho video ngắn.
 
 QUAN TRỌNG — quote đầu tiên (vị trí số 1 trong mảng JSON) KHÔNG phải trích nguyên văn từ video,
 mà là 1 câu hook do bạn tự viết dựa trên tiêu đề video ở trên, mục đích thu hút người xem dừng
-lại xem tiếp. Yêu cầu bắt buộc cho câu hook:
-- Cực ngắn gọn — tối đa khoảng 6-8 từ, đọc lướt/đọc thầm được trong 2 giây đầu tiên của video
-  (giống 1 dòng tiêu đề đập vào mắt, KHÔNG phải 1 câu văn đầy đủ hay câu có nhiều mệnh đề)
-- Bắt buộc phải chứa chữ "U40" (ví dụ gọi thẳng đối tượng khán giả: "U40 ơi, ...")
+lại xem tiếp. Câu hook phải theo dạng "nêu hành động/lợi ích cụ thể + mốc tuổi 40", viết liền
+thành 1 câu tự nhiên — KHÔNG gọi thẳng đối tượng kiểu "U40 ơi...", không dùng dấu chấm than.
+Ví dụ đúng format (chỉ để tham khảo cách viết, nội dung thật phải bám theo tiêu đề video):
+"Nâng cấp bản thân nhanh chóng khi ở tuổi 40 để không hối tiếc".
+
+Yêu cầu bắt buộc cho câu hook:
+- 1 câu duy nhất, súc tích, đọc lướt được trong khoảng 2-3 giây đầu video (khoảng 8-14 từ)
+- Có nhắc đến mốc tuổi 40 một cách tự nhiên trong câu (ví dụ "tuổi 40", "ở tuổi 40", "trước tuổi
+  40"...) — không bắt buộc viết tắt "U40"
+- Nội dung hook phải lấy đúng ý/hành động chính từ tiêu đề video ở trên, không viết chung chung
 Từ quote vị trí số 2 trở đi mới là trích nguyên văn thật từ nội dung video, độ dài như bình
 thường, không bị giới hạn ngắn gọn như câu hook.
 
 Với mỗi quote, trả về:
 - quote: nguyên văn câu nói (tiếng Việt, giữ đúng lời) — riêng quote đầu tiên là câu hook tự viết
-  như mô tả ở trên, có chứa chữ "U40"
+  như mô tả ở trên
 - context: bối cảnh/ý nghĩa ngắn gọn của câu nói (quote đầu tiên ghi "Câu hook mở đầu")
 - timestamp: thời điểm xuất hiện trong video, định dạng "mm:ss" (quote đầu tiên để trống "")
 - hookScore: điểm hook từ 1 đến 5 (5 = hấp dẫn nhất để mở đầu video ngắn; quote đầu tiên luôn là 5)

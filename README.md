@@ -84,8 +84,9 @@ chủ đề mới (ví dụ trích 1 loại nội dung khác ngoài quote): tạ
 export `{ build(vars), parse(text) }`, rồi đăng ký vào `TOPICS` trong `src/prompts/index.js`.
 
 Prompt chủ đề `quote` hiện yêu cầu Gemini viết **quote đầu tiên là 1 câu hook tự sáng tác** dựa
-trên tiêu đề video (không phải trích nguyên văn), thu hút người xem và bắt buộc chứa chữ "U40".
-Các quote còn lại vẫn là trích nguyên văn từ video như trước.
+trên tiêu đề video (không phải trích nguyên văn) — dạng "hành động/lợi ích cụ thể + mốc tuổi 40",
+ví dụ "Nâng cấp bản thân nhanh chóng khi ở tuổi 40 để không hối tiếc", đọc lướt được trong 2-3
+giây đầu video. Các quote còn lại vẫn là trích nguyên văn từ video như trước.
 
 ## Sinh ảnh nền cho quote (mặc định tắt)
 
