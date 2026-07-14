@@ -5,6 +5,14 @@ const config = require('./config');
 // code mỗi khi Google ngừng hỗ trợ 1 model đời cũ
 const MODEL = 'gemini-flash-latest';
 
+const REQUEST_TIMEOUT_MS = 60000;
+const MAX_ATTEMPTS = 2; // gọi lần đầu + retry 1 lần nếu timeout
+
+function isTimeoutError(err) {
+  const message = (err?.message || '').toLowerCase();
+  return err?.name === 'AbortError' || message.includes('timeout') || message.includes('timed out');
+}
+
 function buildPrompt(tieuDe) {
   return `Bạn là trợ lý trích quote hay từ video YouTube để dựng video ngắn (TikTok/Shorts).
 
@@ -42,21 +50,37 @@ function parseQuotesResponse(text) {
   }));
 }
 
+async function callGemini(youtubeUrl, tieuDe) {
+  const ai = new GoogleGenAI({ apiKey: config.GEMINI_API_KEY });
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL,
+        contents: [
+          {
+            role: 'user',
+            parts: [{ fileData: { fileUri: youtubeUrl } }, { text: buildPrompt(tieuDe) }],
+          },
+        ],
+        config: { httpOptions: { timeout: REQUEST_TIMEOUT_MS } },
+      });
+      return response.text;
+    } catch (err) {
+      const isLastAttempt = attempt === MAX_ATTEMPTS;
+      if (!isLastAttempt && isTimeoutError(err)) {
+        console.warn(`  Gemini API timeout cho video "${tieuDe}", thử lại lần ${attempt + 1}...`);
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 async function extractQuotes(youtubeUrl, tieuDe) {
   let rawText;
   try {
-    const ai = new GoogleGenAI({ apiKey: config.GEMINI_API_KEY });
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: [
-        {
-          role: 'user',
-          parts: [{ fileData: { fileUri: youtubeUrl } }, { text: buildPrompt(tieuDe) }],
-        },
-      ],
-    });
-
-    rawText = response.text;
+    rawText = await callGemini(youtubeUrl, tieuDe);
   } catch (err) {
     throw new Error(`Lỗi khi gọi Gemini API cho video "${tieuDe}": ${err.message}`);
   }
