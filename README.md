@@ -106,10 +106,10 @@ giây đầu video. Các quote còn lại vẫn là trích nguyên văn từ vid
 `IMAGE_MODEL`, hiện đang tạm dùng `gemini-2.5-flash-image`, sẽ đổi sang `gemini-3.1-flash-image`
 sau khi hết hạn dùng thử) để sinh 1 ảnh nền (9:16) theo nội dung quote + phong cách cố định: 1
 tấm ảnh thật liền mạch (không phải ảnh ghép hay có mảng màu đặc rời rạc chèn vào khung hình),
-người (nếu có) chiếm khoảng 1/3 khung hình — không bị cắt cụt chỉ còn tay/vai, thường đang làm 1
-hành động đời thường như nấu ăn/vẽ tranh/đi dạo, không lộ mặt, tông pastel sáng, và **không chèn
-bất kỳ chữ/text nào vào ảnh**. Ảnh lưu vào `output/images/quote_XXX.png` (STT quote 3 chữ số,
-khớp cột STT trong tab Quotes).
+người (nếu có) là người châu Á (ưu tiên Việt Nam), chiếm khoảng 1/4 khung hình — không bị cắt
+cụt chỉ còn tay/vai, thường đang làm 1 hành động đời thường như nấu ăn/vẽ tranh/đi dạo, không lộ
+mặt, tông pastel sáng, và **không chèn bất kỳ chữ/text nào vào ảnh**. Ảnh lưu vào
+`output/images/quote_XXX.png` (STT quote 3 chữ số, khớp cột STT trong tab Quotes).
 
 Mặc định (`--image-scope=quote`), toàn bộ ảnh của **cùng 1 video** dùng chung 1 bối cảnh/hành
 động (chọn ngẫu nhiên trong `SCENE_ANCHORS`), và mỗi ảnh sau được sinh kèm ảnh ngay trước làm

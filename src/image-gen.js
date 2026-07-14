@@ -11,10 +11,10 @@ const OUTPUT_DIR = path.join(__dirname, '..', 'output', 'images');
 
 // Giữ ngắn gọn dạng cụm từ (không viết câu đầy đủ) để giảm token input mỗi lần gọi, vẫn đủ
 // các ràng buộc bắt buộc: 1 tấm ảnh liền mạch (không phải ảnh ghép 2 nửa/mảng màu rời rạc),
-// người (nếu có) chiếm khoảng 1/3 khung hình chứ không bị cắt cụt còn 1 mẩu nhỏ, tông pastel
-// sáng, không chèn chữ vào ảnh.
+// người châu Á (ưu tiên Việt Nam) chỉ chiếm khoảng 1/4 khung hình chứ không bị cắt cụt còn 1
+// mẩu nhỏ, tông pastel sáng, không chèn chữ vào ảnh.
 const STYLE_PROMPT_SUFFIX = `Style: cinematic photo, bright soft pastel tones, minimal, airy, peaceful — 1 single cohesive real photograph filling the whole frame (NOT a collage, NOT split panels, NOT a separate flat solid-color block glued onto part of the frame).
-Person (if shown): whole figure visible, occupying roughly 1/3 of the frame — not cropped by the frame edge, not just a hand/shoulder sliver. Shown from behind, from the side, or at a distance so the face is not clearly recognizable.
+Person (if shown): Asian, ideally Vietnamese, appearance and styling. Whole figure visible, small in the frame — occupying roughly 1/4 of the frame — not cropped by the frame edge, not just a hand/shoulder sliver. Shown from behind, from the side, or at a distance so the face is not clearly recognizable.
 Any empty space for a future text overlay must come naturally from the scene itself (open sky, distant blurred background) — never as an artificial separate rectangle.
 No text: absolutely no letters, words, numbers, captions, watermark, or typography anywhere in the image.`;
 
