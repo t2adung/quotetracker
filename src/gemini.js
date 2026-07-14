@@ -1,7 +1,7 @@
 const { GoogleGenAI } = require('@google/genai');
 const config = require('./config');
 
-const MODEL = 'gemini-2.0-flash';
+const MODEL = 'gemini-2.5-flash';
 
 function buildPrompt(tieuDe) {
   return `Bạn là trợ lý trích quote hay từ video YouTube để dựng video ngắn (TikTok/Shorts).
