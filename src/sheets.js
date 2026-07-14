@@ -9,6 +9,7 @@ const VIDEOS_RANGE = `${config.SHEET_TAB_VIDEOS}!A4:I`;
 const VIDEOS_STT_RANGE = `${config.SHEET_TAB_VIDEOS}!A4:A`;
 const QUOTES_STT_RANGE = `${config.SHEET_TAB_QUOTES}!A4:A`;
 const QUOTES_APPEND_RANGE = `${config.SHEET_TAB_QUOTES}!A4:I`;
+const QUOTES_FULL_RANGE = `${config.SHEET_TAB_QUOTES}!A4:J`;
 const VIDEOS_FIRST_DATA_ROW = 4;
 const QUOTES_FIRST_DATA_ROW = 4;
 // Cột J = "image_filename" (tên file ảnh nền, ví dụ quote_001.png) — cột mới, thêm thủ công
@@ -91,6 +92,26 @@ async function appendQuotes(sttVideo, quotes) {
   }
 }
 
+async function getQuotesMissingImages() {
+  try {
+    const sheets = await getSheetsClient();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.SHEET_ID,
+      range: QUOTES_FULL_RANGE,
+    });
+
+    const rows = res.data.values || [];
+
+    return rows
+      .filter((row) => row[0] && !row[9]) // cột J (image_filename) trống = chưa sinh ảnh
+      .map((row) => ({ stt: row[0], sttVideo: row[1], quote: row[2] }));
+  } catch (err) {
+    throw new Error(
+      `Lỗi khi đọc quote còn thiếu ảnh từ tab "${config.SHEET_TAB_QUOTES}": ${err.message}`
+    );
+  }
+}
+
 async function updateQuoteImageFilename(stt, filename) {
   try {
     const sheets = await getSheetsClient();
@@ -147,4 +168,10 @@ async function updateVideoStatus(stt, newStatus) {
   }
 }
 
-module.exports = { getUnprocessedVideos, appendQuotes, updateVideoStatus, updateQuoteImageFilename };
+module.exports = {
+  getUnprocessedVideos,
+  appendQuotes,
+  updateVideoStatus,
+  updateQuoteImageFilename,
+  getQuotesMissingImages,
+};
