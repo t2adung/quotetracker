@@ -1,7 +1,9 @@
 const { GoogleGenAI } = require('@google/genai');
 const config = require('./config');
 
-const MODEL = 'gemini-2.5-flash';
+// Dùng alias "-latest" thay vì ghim 1 phiên bản cụ thể, để không phải sửa
+// code mỗi khi Google ngừng hỗ trợ 1 model đời cũ
+const MODEL = 'gemini-flash-latest';
 
 function buildPrompt(tieuDe) {
   return `Bạn là trợ lý trích quote hay từ video YouTube để dựng video ngắn (TikTok/Shorts).
