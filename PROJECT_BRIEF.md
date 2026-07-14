@@ -17,8 +17,11 @@ local-first (chưa deploy VPS ở giai đoạn này).
   - Tab `Nguồn Video`: STT, Link YouTube, Tiêu đề video, Kênh gốc, Chủ đề chính, Trạng thái xử lý,
     Người phụ trách, Ngày thêm, Ghi chú
   - Tab `Quotes`: STT, STT Video nguồn, Quote, Bối cảnh / ý nghĩa, Timestamp, Điểm hook (1-5),
-    Trạng thái sử dụng, Link video output (Canva), Ngày đăng
+    Trạng thái sử dụng, Link video output (Canva), Ngày đăng, image_filename (cột J — thêm mới,
+    xem ghi chú bên dưới)
   - **Không đổi tên cột/tab hiện có** — code phải khớp đúng theo cấu trúc này
+  - Cột `image_filename` (J) cần được thêm thủ công (header ở hàng 3) vào Sheet thật trước khi
+    bật tính năng sinh ảnh nền — xem `README.md` mục "Sinh ảnh nền cho quote"
 
 ## Luồng xử lý (end-to-end)
 1. Đọc các dòng ở tab `Nguồn Video` có Trạng thái xử lý = "Chưa xử lý"

@@ -9,7 +9,12 @@ const VIDEOS_RANGE = `${config.SHEET_TAB_VIDEOS}!A4:I`;
 const VIDEOS_STT_RANGE = `${config.SHEET_TAB_VIDEOS}!A4:A`;
 const QUOTES_STT_RANGE = `${config.SHEET_TAB_QUOTES}!A4:A`;
 const QUOTES_APPEND_RANGE = `${config.SHEET_TAB_QUOTES}!A4:I`;
+const QUOTES_FULL_RANGE = `${config.SHEET_TAB_QUOTES}!A4:J`;
 const VIDEOS_FIRST_DATA_ROW = 4;
+const QUOTES_FIRST_DATA_ROW = 4;
+// Cột J = "image_filename" (tên file ảnh nền, ví dụ quote_001.png) — cột mới, thêm thủ công
+// vào header hàng 3 của tab Quotes trên Google Sheet thật trước khi dùng updateQuoteImageFilename.
+const QUOTES_IMAGE_FILENAME_COLUMN = 'J';
 
 async function getSheetsClient() {
   const auth = new google.auth.GoogleAuth({
@@ -78,10 +83,60 @@ async function appendQuotes(sttVideo, quotes) {
       insertDataOption: 'INSERT_ROWS',
       requestBody: { values: rows },
     });
+
+    return rows.map((row) => ({ stt: row[0], quote: row[2] }));
   } catch (err) {
     throw new Error(
       `Lỗi khi ghi quote vào tab "${config.SHEET_TAB_QUOTES}" cho video STT ${sttVideo}: ${err.message}`
     );
+  }
+}
+
+async function getQuotesMissingImages() {
+  try {
+    const sheets = await getSheetsClient();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.SHEET_ID,
+      range: QUOTES_FULL_RANGE,
+    });
+
+    const rows = res.data.values || [];
+
+    return rows
+      .filter((row) => row[0] && !row[9]) // cột J (image_filename) trống = chưa sinh ảnh
+      .map((row) => ({ stt: row[0], sttVideo: row[1], quote: row[2] }));
+  } catch (err) {
+    throw new Error(
+      `Lỗi khi đọc quote còn thiếu ảnh từ tab "${config.SHEET_TAB_QUOTES}": ${err.message}`
+    );
+  }
+}
+
+async function updateQuoteImageFilename(stt, filename) {
+  try {
+    const sheets = await getSheetsClient();
+
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.SHEET_ID,
+      range: QUOTES_STT_RANGE,
+    });
+    const rows = res.data.values || [];
+    const rowOffset = rows.findIndex((row) => String(row[0]) === String(stt));
+
+    if (rowOffset === -1) {
+      throw new Error(`Không tìm thấy quote có STT = ${stt} trong tab "${config.SHEET_TAB_QUOTES}"`);
+    }
+
+    const sheetRowNumber = rowOffset + QUOTES_FIRST_DATA_ROW;
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: config.SHEET_ID,
+      range: `${config.SHEET_TAB_QUOTES}!${QUOTES_IMAGE_FILENAME_COLUMN}${sheetRowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [[filename]] },
+    });
+  } catch (err) {
+    throw new Error(`Lỗi khi ghi tên file ảnh cho quote STT ${stt}: ${err.message}`);
   }
 }
 
@@ -113,4 +168,10 @@ async function updateVideoStatus(stt, newStatus) {
   }
 }
 
-module.exports = { getUnprocessedVideos, appendQuotes, updateVideoStatus };
+module.exports = {
+  getUnprocessedVideos,
+  appendQuotes,
+  updateVideoStatus,
+  updateQuoteImageFilename,
+  getQuotesMissingImages,
+};
