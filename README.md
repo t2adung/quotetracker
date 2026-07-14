@@ -100,11 +100,13 @@ giây đầu video. Các quote còn lại vẫn là trích nguyên văn từ vid
 `src/image-gen.js` có hàm `generateBackgroundImage(...)` gọi model Gemini Flash Image (hằng số
 `IMAGE_MODEL`, hiện đang tạm dùng `gemini-2.5-flash-image`, sẽ đổi sang `gemini-3.1-flash-image`
 sau khi hết hạn dùng thử) để sinh 1 ảnh nền (9:16) theo nội dung quote + phong cách cố định
-(chỉ hé lộ 1 phần nhỏ của người, không lộ mặt, tông pastel sáng, chừa khoảng trống để chèn chữ
-quote sau này), lưu vào
+(chỉ hé lộ 1 phần nhỏ của người đang làm 1 hành động đời thường như nấu ăn/vẽ tranh/đi dạo,
+không lộ mặt, tông pastel sáng, chừa khoảng trống để chèn chữ quote sau này, và **không chèn bất
+kỳ chữ/text nào vào ảnh**), lưu vào
 `output/images/quote_XXX.png` (STT quote 3 chữ số, khớp cột STT trong tab Quotes).
 
-Toàn bộ ảnh của **cùng 1 video** dùng chung 1 bối cảnh (chọn ngẫu nhiên trong `SCENE_ANCHORS`),
+Toàn bộ ảnh của **cùng 1 video** dùng chung 1 bối cảnh/hành động (chọn ngẫu nhiên trong
+`SCENE_ANCHORS`),
 và mỗi ảnh sau được sinh kèm ảnh ngay trước làm ảnh tham chiếu — để cả chuỗi ảnh giữ đúng nhân
 vật/bối cảnh/ánh sáng, chỉ tiến triển nhẹ qua từng khung hình, tạo cảm giác như đang xem 1 đoạn
 video chuyển động khi ghép các ảnh lại theo thứ tự quote.

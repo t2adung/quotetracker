@@ -13,17 +13,19 @@ const OUTPUT_DIR = path.join(__dirname, '..', 'output', 'images');
 // các ràng buộc bắt buộc: chỉ hé lộ 1 phần người, tông pastel sáng, chừa chỗ trống cho chữ.
 const STYLE_PROMPT_SUFFIX = `Style: cinematic photo, bright soft pastel tones, minimal, airy, peaceful.
 Person: only a small partial glimpse (shoulder/hand/silhouette edge), no visible face, off to one side, small in frame, no full body.
-Composition: large clean empty space (sky/blurred background) reserved for a text overlay, no clutter there.`;
+Composition: large clean empty space (sky/blurred background) reserved for a text overlay, no clutter there.
+No text: absolutely no letters, words, numbers, captions, watermark, or typography anywhere in the image.`;
 
-// Vài "bối cảnh gốc" để chọn ngẫu nhiên 1 cái dùng chung cho toàn bộ ảnh của 1 video —
-// đảm bảo các ảnh trong cùng video có cùng chủ đề/bối cảnh thay vì mỗi ảnh 1 nơi khác nhau.
+// Vài "bối cảnh gốc" thiên về hành động thực tế đời thường (nấu ăn, vẽ tranh, đi dạo...) để
+// chọn ngẫu nhiên 1 cái dùng chung cho toàn bộ ảnh của 1 video — đảm bảo các ảnh trong cùng
+// video có cùng chủ đề/bối cảnh/hành động thay vì mỗi ảnh 1 nơi khác nhau.
 const SCENE_ANCHORS = [
-  'a quiet lake shoreline at soft pastel dawn',
-  'a minimalist pastel-toned room with a large window and soft sheer curtains',
-  'a golden wheat field under a pale pastel sky',
-  'a quiet mountain trail with soft mist and a pastel-colored sky',
-  'a peaceful garden path lined with pastel flowers',
-  'a calm beach at soft pastel sunrise',
+  'cooking a simple meal in a bright pastel-toned kitchen',
+  'painting on a canvas outdoors in a pastel-lit garden',
+  'walking along a scenic pastel-colored trail in nature',
+  'arranging fresh flowers at a pastel-toned table',
+  'brewing tea by a large window with soft pastel light',
+  'tending potted plants on a sunny pastel balcony',
 ];
 
 function pickSceneAnchor() {
