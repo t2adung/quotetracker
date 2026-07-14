@@ -8,20 +8,11 @@ const IMAGE_MODEL = 'gemini-3.1-flash-image';
 
 const OUTPUT_DIR = path.join(__dirname, '..', 'output', 'images');
 
-const STYLE_PROMPT_SUFFIX = `
-Photo, bright soft pastel color tones, wholesome and uplifting mood.
-Only a small, partial glimpse of a person is visible — for example just a
-shoulder, hand, or the edge of a silhouette entering the frame from one side
-(no full body, no visible face), set in a beautiful natural outdoor setting
-(mountain, forest, or open field). The person should occupy a small portion
-of the frame, off to one side.
-Composition: leave a large, clean, visually simple open space (sky, field,
-blurred background, or negative space) in the upper or central area of the
-frame, free of clutter or the subject, reserved for adding a text quote
-overlay later without covering important visual details.
-Style: cinematic photography, soft pastel colors, bright and airy, peaceful,
-minimal and clean composition.
-`;
+// Giữ ngắn gọn dạng cụm từ (không viết câu đầy đủ) để giảm token input mỗi lần gọi, vẫn đủ
+// các ràng buộc bắt buộc: chỉ hé lộ 1 phần người, tông pastel sáng, chừa chỗ trống cho chữ.
+const STYLE_PROMPT_SUFFIX = `Style: cinematic photo, bright soft pastel tones, minimal, airy, peaceful.
+Person: only a small partial glimpse (shoulder/hand/silhouette edge), no visible face, off to one side, small in frame, no full body.
+Composition: large clean empty space (sky/blurred background) reserved for a text overlay, no clutter there.`;
 
 // Vài "bối cảnh gốc" để chọn ngẫu nhiên 1 cái dùng chung cho toàn bộ ảnh của 1 video —
 // đảm bảo các ảnh trong cùng video có cùng chủ đề/bối cảnh thay vì mỗi ảnh 1 nơi khác nhau.
@@ -39,16 +30,10 @@ function pickSceneAnchor() {
 }
 
 function buildImagePrompt({ quoteText, sceneAnchor, sequenceIndex, totalInSequence }) {
-  return `Scene setting (must stay identical across the whole sequence): ${sceneAnchor}.
-
-This is frame ${sequenceIndex} of ${totalInSequence} in a single continuous sequence of images
-made for the same short video. Keep the exact same subject, outfit, setting, lighting and color
-tone as the previous frame(s) — only let the pose or camera position progress slightly from one
-frame to the next (as if the camera is slowly moving, or the subject is slowly walking/turning),
-so that viewing the frames in order feels like watching a slow, continuous video rather than
-unrelated photos.
-
-This frame should visually reflect the feeling of: "${quoteText}"
+  return `Frame ${sequenceIndex}/${totalInSequence} of 1 continuous sequence, same short video.
+Scene (identical every frame): ${sceneAnchor}.
+Same subject/outfit/lighting/color tone as previous frame; only pose/camera shifts slightly — continuous motion feel, not unrelated photos.
+Mood to reflect: "${quoteText}"
 ${STYLE_PROMPT_SUFFIX}`;
 }
 
