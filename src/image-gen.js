@@ -9,11 +9,18 @@ const IMAGE_MODEL = 'gemini-3.1-flash-image';
 const OUTPUT_DIR = path.join(__dirname, '..', 'output', 'images');
 
 const STYLE_PROMPT_SUFFIX = `
-Photo, natural warm lighting, wholesome and uplifting mood.
-A person shown from behind or with face turned away/obscured
-(no visible face), standing in a beautiful natural outdoor setting
-(mountain, forest, or open field at golden hour).
-Style: cinematic photography, soft natural colors, peaceful, clean composition.
+Photo, bright soft pastel color tones, wholesome and uplifting mood.
+Only a small, partial glimpse of a person is visible — for example just a
+shoulder, hand, or the edge of a silhouette entering the frame from one side
+(no full body, no visible face), set in a beautiful natural outdoor setting
+(mountain, forest, or open field). The person should occupy a small portion
+of the frame, off to one side.
+Composition: leave a large, clean, visually simple open space (sky, field,
+blurred background, or negative space) in the upper or central area of the
+frame, free of clutter or the subject, reserved for adding a text quote
+overlay later without covering important visual details.
+Style: cinematic photography, soft pastel colors, bright and airy, peaceful,
+minimal and clean composition.
 `;
 
 function buildImagePrompt(quoteText) {
