@@ -68,6 +68,10 @@ node src/index.js --topic=quote --gen-images
 - **"got status: 429 Too Many Requests"** → hết quota Gemini API (free tier giới hạn theo
   phút/ngày). Kiểm tra tại trang Rate Limit của Google AI Studio, đợi quota reset hoặc bật
   billing cho project.
+- **"Your prepayment credits are depleted" (code 429, status RESOURCE_EXHAUSTED)** → khác với
+  lỗi rate-limit ở trên — đây là hết tiền credit đã nạp trước cho project. Vào
+  [AI Studio → Billing](https://ai.studio/projects) để nạp thêm, script không tự retry được lỗi
+  này (chỉ retry khi timeout).
 - **"This model models/xxx is no longer available"** → Google đã ngừng hỗ trợ model đang dùng.
   Chạy `node scripts/list-gemini-models.js` để lấy đúng danh sách model hiện còn khả dụng cho
   API key của bạn, rồi cập nhật hằng số `MODEL` trong `src/gemini.js`.
