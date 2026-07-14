@@ -1,16 +1,39 @@
 require('./config');
-const { getUnprocessedVideos } = require('./sheets');
+const { getUnprocessedVideos, appendQuotes, updateVideoStatus } = require('./sheets');
+const { extractQuotes } = require('./gemini');
+
+const STATUS_DA_TRICH_QUOTE = 'Đã trích quote';
 
 console.log('Config OK');
 
 async function main() {
+  let videos;
   try {
-    const videos = await getUnprocessedVideos();
-    console.log(`Tìm thấy ${videos.length} video chưa xử lý:`);
-    console.log(videos);
+    videos = await getUnprocessedVideos();
   } catch (err) {
     console.error(err.message);
+    return;
   }
+
+  console.log(`Tìm thấy ${videos.length} video chưa xử lý.`);
+
+  for (const video of videos) {
+    console.log(`\n▶ Đang xử lý video STT ${video.stt}: "${video.tieuDe}"`);
+    try {
+      const quotes = await extractQuotes(video.link, video.tieuDe);
+      console.log(`  Trích được ${quotes.length} quote.`);
+
+      await appendQuotes(video.stt, quotes);
+      console.log('  Đã ghi quote vào tab Quotes.');
+
+      await updateVideoStatus(video.stt, STATUS_DA_TRICH_QUOTE);
+      console.log(`  Đã cập nhật trạng thái "${STATUS_DA_TRICH_QUOTE}".`);
+    } catch (err) {
+      console.error(`  Lỗi khi xử lý video STT ${video.stt}: ${err.message}`);
+    }
+  }
+
+  console.log('\nHoàn tất.');
 }
 
 main();
