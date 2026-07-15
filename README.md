@@ -113,7 +113,10 @@ export `{ build(vars), parse(text) }`, rồi đăng ký vào `TOPICS` trong `src
 Prompt chủ đề `quote` hiện yêu cầu Gemini viết **quote đầu tiên là 1 câu hook tự sáng tác** dựa
 trên tiêu đề video (không phải trích nguyên văn) — dạng "hành động/lợi ích cụ thể + mốc tuổi 40",
 ví dụ "Nâng cấp bản thân nhanh chóng khi ở tuổi 40 để không hối tiếc", đọc lướt được trong 2-3
-giây đầu video. Các quote còn lại vẫn là trích nguyên văn từ video như trước.
+giây đầu video. Các quote còn lại vẫn giữ đúng lời đã nói trong video, nhưng được phép **ghép
+thêm ý liền kề** (không bịa thêm nội dung ngoài video) để mỗi quote đủ trọn 1 ý, khoảng 80-200 ký
+tự — tránh vừa cụt lủn/khó hiểu khi tách khỏi video, vừa không dài tới mức tràn khung hình lúc
+render video.
 
 ## Thư viện style ảnh theo chủ đề
 
@@ -187,7 +190,10 @@ Script (`src/render-quotes.js`) sẽ:
    video được hiểu là **title**, hiển thị to/đậm hơn hẳn các quote còn lại. Quote hiển thị ở
    **phía trên khung hình** (không phải giữa trang), trong khối có background mờ (blur) + chữ có
    viền đen (text-stroke) để luôn nổi rõ trên mọi ảnh nền, fade-in nhẹ. Cột "Bối cảnh/ý nghĩa"
-   không hiển thị trong video — chỉ dùng nội bộ lúc trích quote
+   không hiển thị trong video — chỉ dùng nội bộ lúc trích quote. **Thời lượng mỗi slide được tính
+   động theo đúng độ dài quote** (xem `src/timing.js`, tốc độ đọc lướt ~3 từ/giây, chặn trong
+   khoảng 3-8 giây/slide, riêng slide title cộng thêm ~1 giây để bắt nhịp video) — quote dài hiện
+   lâu hơn, quote ngắn hiện nhanh hơn, không cố định 4-5 giây/slide như trước
 3. Nếu bật cờ `--logo=<tên>` → hiện badge `@<tên> sưu tầm` ở dưới khung trong suốt video (mặc
    định không hiện gì nếu không truyền cờ)
 4. Nếu 1 quote lỗi (ví dụ ảnh nền không tồn tại trong `output/images/`) → bỏ qua đúng quote đó,

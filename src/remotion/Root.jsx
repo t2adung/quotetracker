@@ -11,11 +11,12 @@ const DEFAULT_SEGMENTS = [
   { quote: 'Quote thứ 2 mẫu để xem trước.', imagePath: '' },
 ];
 
-// Số quote (segments) thay đổi theo từng video nguồn, nên thời lượng composition phải tính lại
-// động dựa trên props thay vì cố định — xem totalDurationInFrames() ở VideoSequence.jsx.
+// Số quote (segments) và độ dài từng quote thay đổi theo từng video nguồn, nên thời lượng
+// composition phải tính lại động dựa trên props thay vì cố định — xem totalDurationInFrames() ở
+// VideoSequence.jsx.
 function calculateMetadata({ props }) {
   const segments = props.segments || [];
-  return { durationInFrames: totalDurationInFrames(segments.length) };
+  return { durationInFrames: totalDurationInFrames(segments) };
 }
 
 function RemotionRoot() {
@@ -23,7 +24,7 @@ function RemotionRoot() {
     <Composition
       id={COMPOSITION_ID}
       component={VideoSequence}
-      durationInFrames={totalDurationInFrames(DEFAULT_SEGMENTS.length)}
+      durationInFrames={totalDurationInFrames(DEFAULT_SEGMENTS)}
       fps={FPS}
       width={WIDTH}
       height={HEIGHT}

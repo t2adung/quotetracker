@@ -1,15 +1,16 @@
 const React = require('react');
 const { AbsoluteFill, Series } = require('remotion');
 const { QuoteSlide } = require('./QuoteVideo');
-const { FPS, TITLE_DURATION_IN_FRAMES, QUOTE_DURATION_IN_FRAMES } = require('../timing');
+const { FPS, durationInFramesForText } = require('../timing');
 
-function durationForIndex(index) {
-  return index === 0 ? TITLE_DURATION_IN_FRAMES : QUOTE_DURATION_IN_FRAMES;
-}
-
-function totalDurationInFrames(segmentCount) {
-  if (segmentCount <= 0) return FPS;
-  return TITLE_DURATION_IN_FRAMES + Math.max(0, segmentCount - 1) * QUOTE_DURATION_IN_FRAMES;
+// Tổng thời lượng (số frame) của cả video — cộng dồn thời lượng từng slide, mỗi slide đã tính
+// động theo độ dài quote thật (xem durationInFramesForText ở src/timing.js).
+function totalDurationInFrames(segments) {
+  if (!segments || segments.length === 0) return FPS;
+  return segments.reduce(
+    (total, segment, index) => total + durationInFramesForText(segment.quote, { isTitle: index === 0 }),
+    0
+  );
 }
 
 // Ghép nhiều quote thuộc cùng 1 "STT Video nguồn" thành 1 video duy nhất, phát nối tiếp nhau.
@@ -19,7 +20,10 @@ function VideoSequence({ segments, logo }) {
     <AbsoluteFill style={{ backgroundColor: '#000' }}>
       <Series>
         {segments.map((segment, index) => (
-          <Series.Sequence key={index} durationInFrames={durationForIndex(index)}>
+          <Series.Sequence
+            key={index}
+            durationInFrames={durationInFramesForText(segment.quote, { isTitle: index === 0 })}
+          >
             <QuoteSlide quote={segment.quote} imagePath={segment.imagePath} isTitle={index === 0} logo={logo} />
           </Series.Sequence>
         ))}
@@ -28,4 +32,4 @@ function VideoSequence({ segments, logo }) {
   );
 }
 
-module.exports = { VideoSequence, FPS, TITLE_DURATION_IN_FRAMES, QUOTE_DURATION_IN_FRAMES, totalDurationInFrames };
+module.exports = { VideoSequence, FPS, totalDurationInFrames };
