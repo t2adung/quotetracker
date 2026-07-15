@@ -169,7 +169,7 @@ tác tay qua Canva Bulk Create ở kế hoạch ban đầu (xem Milestone 5b ở
 
 ```bash
 npm run render:quotes
-npm run render:quotes -- --logo=song.canbang   # kèm badge "@song.canbang" trong video
+npm run render:quotes -- --logo=song.canbang   # kèm badge "@song.canbang sưu tầm" trong video
 ```
 
 Script (`src/render-quotes.js`) sẽ:
@@ -181,8 +181,8 @@ Script (`src/render-quotes.js`) sẽ:
    **phía trên khung hình** (không phải giữa trang), trong khối có background mờ (blur) + chữ có
    viền đen (text-stroke) để luôn nổi rõ trên mọi ảnh nền, fade-in nhẹ. Cột "Bối cảnh/ý nghĩa"
    không hiển thị trong video — chỉ dùng nội bộ lúc trích quote
-3. Nếu bật cờ `--logo=<tên>` → hiện badge `@<tên>` ở dưới khung trong suốt video (mặc định
-   không hiện gì nếu không truyền cờ)
+3. Nếu bật cờ `--logo=<tên>` → hiện badge `@<tên> sưu tầm` ở dưới khung trong suốt video (mặc
+   định không hiện gì nếu không truyền cờ)
 4. Nếu 1 quote lỗi (ví dụ ảnh nền không tồn tại trong `output/images/`) → bỏ qua đúng quote đó,
    vẫn ghép các quote còn lại của cùng video; nếu cả video không còn quote nào đủ ảnh → log lỗi,
    bỏ qua cả video, tiếp tục video kế tiếp, không dừng cả vòng lặp

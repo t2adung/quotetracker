@@ -7,6 +7,18 @@ Tiêu đề video: "${tieuDe}"
 Hãy xem video và trích ra 10-15 câu quote hay nhất, đáng chú ý nhất, phù hợp để làm nội dung
 cho video ngắn.
 
+Định dạng bắt buộc cho MỌI quote (kể cả câu hook lẫn quote trích nguyên văn): luôn VIẾT HOA chữ
+cái đầu tiên của câu quote, kể cả khi trích nguyên văn giữa chừng 1 câu nói trong video (chỉ viết
+hoa chữ cái đầu, không sửa/diễn giải lại phần còn lại của câu).
+
+Trường hợp đặc biệt — nếu nội dung video liệt kê theo cách thức/phương pháp/quy trình/công thức/
+bước cụ thể (ví dụ "5 cách để...", "3 bước để...", "công thức gồm..."): PHẢI bám sát đúng theo
+các chỉ mục đó khi chọn quote, cố gắng đủ mặt mọi chỉ mục, theo đúng thứ tự liệt kê trong video:
+- Nếu SỐ CHỈ MỤC ÍT (khoảng 5 chỉ mục trở xuống): chọn 2 quote liên tiếp cho MỖI chỉ mục
+- Nếu SỐ CHỈ MỤC NHIỀU (trên 5 chỉ mục): chỉ chọn 1 quote cho MỖI chỉ mục
+- Vẫn phải tuân theo giới hạn tổng 10-15 quote (kể cả câu hook ở vị trí số 1) và giữ đúng trình
+  tự xuất hiện trong video như yêu cầu bên dưới
+
 QUAN TRỌNG — quote đầu tiên (vị trí số 1 trong mảng JSON) KHÔNG phải trích nguyên văn từ video,
 mà là 1 câu hook do bạn tự viết dựa trên tiêu đề video ở trên, mục đích thu hút người xem dừng
 lại xem tiếp. Câu hook phải theo dạng "nêu hành động/lợi ích cụ thể + mốc tuổi 40", viết liền
@@ -46,6 +58,13 @@ markdown hay text nào khác:
 ]`;
 }
 
+// Luôn viết hoa chữ cái đầu tiên của quote — làm thêm ở code cho chắc, phòng trường hợp Gemini
+// thỉnh thoảng quên áp dụng đúng yêu cầu định dạng đã nêu trong prompt.
+function capitalizeFirstLetter(text) {
+  if (!text) return text;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 function parse(text) {
   const match = text.match(/\[[\s\S]*\]/);
   const jsonText = match ? match[0] : text;
@@ -56,7 +75,7 @@ function parse(text) {
   }
 
   return parsed.map((item) => ({
-    quote: item.quote || '',
+    quote: capitalizeFirstLetter(item.quote || ''),
     context: item.context || '',
     timestamp: item.timestamp || '',
     hookScore: item.hookScore ?? item.hook_score ?? null,

@@ -81,7 +81,7 @@ function QuoteSlide({ quote, imagePath, isTitle, logo }) {
                 fontFamily: 'sans-serif',
               }}
             >
-              @{logo}
+              @{logo} sưu tầm
             </p>
           </div>
         </AbsoluteFill>

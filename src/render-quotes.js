@@ -11,7 +11,7 @@ const ENTRY_POINT = path.join(__dirname, 'remotion', 'index.jsx');
 const OUTPUT_DIR = path.join(__dirname, '..', 'output');
 const IMAGES_DIR = path.join(OUTPUT_DIR, 'images');
 
-// --logo=<tên>: hiển thị "@<tên>" trong video (vd --logo=song.canbang). Bỏ trống thì không hiện.
+// --logo=<tên>: hiển thị "@<tên> sưu tầm" trong video (vd --logo=song.canbang). Bỏ trống thì không hiện.
 function parseArgs(argv) {
   const args = { logo: '' };
   for (const arg of argv) {
@@ -101,7 +101,7 @@ async function main() {
   const bySttVideo = groupQuotesBySttVideo(quotes);
   console.log(`Tìm thấy ${quotes.length} quote sẵn sàng render, thuộc ${bySttVideo.size} video nguồn.`);
   if (logo) {
-    console.log(`Sẽ hiển thị logo "@${logo}" trong video.`);
+    console.log(`Sẽ hiển thị logo "@${logo} sưu tầm" trong video.`);
   }
 
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
