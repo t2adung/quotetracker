@@ -12,55 +12,87 @@ function toImageSrc(imagePath) {
   return staticFile(imagePath);
 }
 
-function QuoteVideo({ quote, context, imagePath }) {
+// 1 "slide" hiển thị 1 quote (dùng bên trong <Series.Sequence> của VideoSequence). Quote đầu
+// tiên của mỗi video (isTitle) được hiển thị to/đậm hơn hẳn các quote còn lại.
+function QuoteSlide({ quote, imagePath, isTitle, logo }) {
   const frame = useCurrentFrame();
 
-  const quoteOpacity = interpolate(frame, [0, FADE_IN_DURATION_FRAMES], [0, 1], {
+  const opacity = interpolate(frame, [0, FADE_IN_DURATION_FRAMES], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
 
+  const fontSize = isTitle ? 80 : 58;
+
   return (
-    <AbsoluteFill style={{ backgroundColor: '#000' }}>
+    <AbsoluteFill>
       <Img src={toImageSrc(imagePath)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
 
-      {/* Overlay đen mờ để chữ luôn đọc được trên mọi ảnh nền */}
+      {/* Overlay đen mờ toàn khung để chữ luôn đọc được trên mọi ảnh nền */}
       <AbsoluteFill style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)' }} />
 
-      <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', padding: '100px 90px' }}>
-        <p
+      {/* Quote nằm ở phía trên khung hình (không phải giữa trang), căn giữa theo chiều ngang */}
+      <AbsoluteFill
+        style={{ justifyContent: 'flex-start', alignItems: 'center', paddingTop: isTitle ? 140 : 165 }}
+      >
+        <div
           style={{
-            opacity: quoteOpacity,
-            color: '#fff',
-            fontSize: 64,
-            fontWeight: 700,
-            lineHeight: 1.4,
-            textAlign: 'center',
-            fontFamily: 'sans-serif',
-            textShadow: '0 4px 16px rgba(0, 0, 0, 0.6)',
-            margin: 0,
+            opacity,
+            maxWidth: 920,
+            padding: isTitle ? '38px 46px' : '28px 38px',
+            borderRadius: 32,
+            // Background mờ (blur) riêng sau chữ, tách biệt với overlay tối toàn khung ở trên
+            backgroundColor: 'rgba(0, 0, 0, 0.42)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
           }}
         >
-          {quote}
-        </p>
+          <p
+            style={{
+              margin: 0,
+              color: '#fff',
+              fontSize,
+              fontWeight: 800,
+              lineHeight: 1.35,
+              textAlign: 'center',
+              fontFamily: 'sans-serif',
+              // Border đen quanh chữ + đổ bóng nhẹ để nổi trên mọi ảnh nền
+              WebkitTextStroke: '2px rgba(0, 0, 0, 0.9)',
+              textShadow: '0 4px 14px rgba(0, 0, 0, 0.6)',
+            }}
+          >
+            {quote}
+          </p>
+        </div>
       </AbsoluteFill>
 
-      <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 130 }}>
-        <p
-          style={{
-            color: 'rgba(255, 255, 255, 0.85)',
-            fontSize: 32,
-            textAlign: 'center',
-            fontFamily: 'sans-serif',
-            padding: '0 110px',
-            margin: 0,
-          }}
-        >
-          {context}
-        </p>
-      </AbsoluteFill>
+      {logo ? (
+        <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', paddingBottom: 90 }}>
+          <div
+            style={{
+              padding: '14px 32px',
+              borderRadius: 999,
+              backgroundColor: 'rgba(0, 0, 0, 0.45)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                color: 'rgba(255, 255, 255, 0.92)',
+                fontSize: 34,
+                fontWeight: 600,
+                fontFamily: 'sans-serif',
+              }}
+            >
+              @{logo}
+            </p>
+          </div>
+        </AbsoluteFill>
+      ) : null}
     </AbsoluteFill>
   );
 }
 
-module.exports = { QuoteVideo };
+module.exports = { QuoteSlide };

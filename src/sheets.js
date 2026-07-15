@@ -157,8 +157,8 @@ async function getQuotesReadyToRender() {
       .filter((row) => row[0] && row[6] === STATUS_QUOTE_CHUA_DUNG && row[9])
       .map((row) => ({
         stt: row[0],
+        sttVideo: row[1],
         quote: row[2],
-        context: row[3],
         imageFilename: row[9],
       }));
   } catch (err) {

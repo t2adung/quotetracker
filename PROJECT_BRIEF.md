@@ -31,8 +31,9 @@ local-first (chưa deploy VPS ở giai đoạn này).
    timestamp, hook_score)
 3. Ghi từng quote vào tab `Quotes`, tham chiếu đúng STT video nguồn
 4. Cập nhật lại Trạng thái xử lý ở tab `Nguồn Video` thành "Đã trích quote"
-5. Với mỗi quote đã có ảnh nền (chưa dùng): render video MP4 bằng Remotion (xem Milestone 5b),
-   cập nhật Trạng thái sử dụng thành "Đã dùng"
+5. Với các quote đã có ảnh nền (chưa dùng), gom theo "STT Video nguồn": render 1 video MP4/video
+   nguồn bằng Remotion (quote đầu tiên là title, xem Milestone 5b), cập nhật Trạng thái sử dụng
+   thành "Đã dùng" cho các quote đã đưa vào video
 
 ## Tech stack
 - Node.js (phiên bản LTS hiện tại)

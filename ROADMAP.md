@@ -72,26 +72,36 @@ chạy hết và báo cáo rõ video nào lỗi.
 > tự động hoá GitHub Actions ở Milestone 6. Mọi nhắc tới "Canva Bulk Create" ở các milestone
 > trước (và ở `PROJECT_BRIEF.md`) coi như không còn áp dụng cho bước dựng video.
 
-Mục tiêu: đọc dữ liệu quote (quote, context, đường dẫn ảnh nền) từ tab `Quotes` → render ra file
-MP4 riêng cho từng quote bằng Remotion, không qua Canva.
+Mục tiêu: đọc dữ liệu quote (quote, đường dẫn ảnh nền) từ tab `Quotes` → **gom theo cột "STT
+Video nguồn"**, render ra 1 file MP4 duy nhất cho mỗi video (ghép nối tiếp các quote cùng video),
+không qua Canva.
 
-- [ ] `src/remotion/QuoteVideo.jsx`: composition nhận props `quote`, `context`, `imagePath`.
-      Layout: ảnh nền phủ full khung 1080x1920, overlay đen mờ (~35%) để chữ luôn đọc được,
-      text quote lớn ở giữa (fade-in nhẹ), text context nhỏ hơn phía dưới
-- [ ] Đăng ký composition trong Remotion Root, thời lượng mỗi video ~6-8 giây, fps 30
-- [ ] `src/render-quotes.js`: đọc quote có Trạng thái sử dụng = "Chưa dùng" từ Sheet (tái dùng
-      hàm ở `sheets.js`), với mỗi quote gọi `renderMedia()` từ `@remotion/renderer`, xuất MP4 vào
-      `output/`, đặt tên theo STT quote
-- [ ] Lỗi ở 1 quote (ví dụ ảnh nền không tồn tại) → log lỗi, tiếp tục quote kế tiếp, không dừng
-      cả vòng lặp
+- [ ] `src/remotion/QuoteVideo.jsx`: 1 "slide" hiển thị 1 quote, nhận props `quote`, `imagePath`,
+      `isTitle`, `logo`. Layout: ảnh nền phủ full khung 1080x1920, overlay đen mờ (~35%) toàn
+      khung, quote hiển thị ở **phía trên khung hình** (không phải giữa trang) trong 1 khối có
+      background mờ (blur) + chữ có border đen (text-stroke), fade-in nhẹ. Quote đầu tiên của mỗi
+      video (`isTitle`) hiển thị to/đậm hơn hẳn các quote còn lại. Không hiển thị "Bối cảnh/ý
+      nghĩa"; nếu có `logo` thì hiện `@<logo>` dạng badge nhỏ ở dưới khung
+- [ ] `src/remotion/VideoSequence.jsx`: ghép nhiều `QuoteVideo` (1 slide/quote cùng
+      "STT Video nguồn") nối tiếp nhau bằng `<Series>`, đăng ký trong Remotion Root với
+      `calculateMetadata` để tính thời lượng động theo số quote (title ~5s, quote còn lại ~4s),
+      fps 30
+- [ ] `src/render-quotes.js`: đọc quote có Trạng thái sử dụng = "Chưa dùng" và đã có ảnh nền từ
+      Sheet (tái dùng hàm ở `sheets.js`), **gom theo STT Video nguồn**, mỗi nhóm gọi
+      `renderMedia()` từ `@remotion/renderer` render ra 1 file MP4 vào `output/`, đặt tên theo
+      STT Video nguồn. Hỗ trợ cờ `--logo=<tên>` để hiện `@<tên>` trong video
+- [ ] Lỗi ở 1 quote (ví dụ ảnh nền không tồn tại) → bỏ qua đúng quote đó, vẫn ghép các quote còn
+      lại của cùng video; lỗi ở cả 1 video (không còn quote nào đủ ảnh) → log lỗi, tiếp tục video
+      kế tiếp, không dừng cả vòng lặp
 - [ ] Sau khi render xong, gọi hàm cập nhật Sheet có sẵn để đổi Trạng thái sử dụng thành
-      "Đã dùng" cho các quote vừa render
+      "Đã dùng" cho các quote đã được đưa vào video render thành công
 - [ ] Thêm script npm `render:quotes`, cập nhật `README.md` thay hướng dẫn Canva bằng
       `npm run render:quotes`
 
-**Nghiệm thu**: chạy `npm run render:quotes` với ít nhất 2-3 quote thật đã có ảnh nền → ra đúng
-số file MP4 trong `output/`, mở lên đúng nội dung quote + ảnh nền + overlay đọc rõ chữ → Sheet tự
-cập nhật đúng trạng thái.
+**Nghiệm thu**: chạy `npm run render:quotes` với ít nhất 1 video nguồn có 2-3 quote thật đã có
+ảnh nền → ra đúng 1 file MP4/video trong `output/`, mở lên thấy quote đầu là title to đẹp hơn,
+các quote nối tiếp nhau đúng thứ tự, chữ ở phía trên khung + đọc rõ (có border/background mờ) →
+Sheet tự cập nhật đúng trạng thái.
 
 ## Milestone 6 — Tự động hoá bằng GitHub Actions (chỉ làm sau khi Milestone 1-5 đã chạy ổn định local)
 Mục tiêu: script tự chạy theo lịch, không cần bật máy tay mỗi lần. Dùng GitHub Actions vì repo

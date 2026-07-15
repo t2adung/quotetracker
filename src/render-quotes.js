@@ -5,35 +5,69 @@ const { bundle } = require('@remotion/bundler');
 const { renderMedia, selectComposition } = require('@remotion/renderer');
 const { getQuotesReadyToRender, updateQuoteStatus, STATUS_QUOTE_DA_DUNG } = require('./sheets');
 
-const COMPOSITION_ID = 'QuoteVideo';
+const COMPOSITION_ID = 'VideoSequence';
 const ENTRY_POINT = path.join(__dirname, 'remotion', 'index.jsx');
 // publicDir = output/, để composition phục vụ ảnh nền qua staticFile('images/quote_XXX.png')
 const OUTPUT_DIR = path.join(__dirname, '..', 'output');
 const IMAGES_DIR = path.join(OUTPUT_DIR, 'images');
 
-function outputFilenameForStt(stt) {
-  const padded = String(stt).padStart(3, '0');
-  return `quote_${padded}.mp4`;
+// --logo=<tên>: hiển thị "@<tên>" trong video (vd --logo=song.canbang). Bỏ trống thì không hiện.
+function parseArgs(argv) {
+  const args = { logo: '' };
+  for (const arg of argv) {
+    if (arg.startsWith('--logo=')) {
+      args.logo = arg.slice('--logo='.length);
+    }
+  }
+  return args;
 }
 
-async function renderQuote(bundleLocation, quote) {
-  const imagePath = path.join(IMAGES_DIR, quote.imageFilename);
-  if (!fs.existsSync(imagePath)) {
-    throw new Error(`Không tìm thấy ảnh nền "${quote.imageFilename}" tại ${imagePath}`);
+function outputFilenameForVideo(sttVideo) {
+  const padded = String(sttVideo).padStart(3, '0');
+  return `video_${padded}.mp4`;
+}
+
+// Gom quote theo "STT Video nguồn" — mỗi nhóm ghép thành 1 video duy nhất, quote đầu tiên
+// trong nhóm được hiểu là title.
+function groupQuotesBySttVideo(quotes) {
+  const map = new Map();
+  for (const quote of quotes) {
+    if (!map.has(quote.sttVideo)) {
+      map.set(quote.sttVideo, []);
+    }
+    map.get(quote.sttVideo).push(quote);
+  }
+  return map;
+}
+
+// Bỏ qua (không chặn cả video) những quote thiếu ảnh nền trên đĩa; chỉ ghép các quote còn lại
+// thành segments để render.
+function buildSegments(quotesOfVideo) {
+  const segments = [];
+  const sttDaDung = [];
+
+  for (const quote of quotesOfVideo) {
+    const imageAbsolutePath = path.join(IMAGES_DIR, quote.imageFilename);
+    if (!fs.existsSync(imageAbsolutePath)) {
+      console.error(`    ✘ Bỏ qua quote STT ${quote.stt}: không tìm thấy ảnh nền "${quote.imageFilename}"`);
+      continue;
+    }
+    segments.push({ quote: quote.quote, imagePath: `images/${quote.imageFilename}` });
+    sttDaDung.push(quote.stt);
   }
 
-  const inputProps = {
-    quote: quote.quote,
-    context: quote.context,
-    imagePath: `images/${quote.imageFilename}`,
-  };
+  return { segments, sttDaDung };
+}
 
-  // Phải chọn lại composition với đúng inputProps của từng quote — Remotion render theo
+async function renderVideo(bundleLocation, sttVideo, segments, logo) {
+  const inputProps = { segments, logo };
+
+  // Phải chọn lại composition với đúng inputProps của từng video — Remotion render theo
   // composition.props đã "resolve" lúc selectComposition(), không phải theo inputProps truyền
   // riêng cho renderMedia().
   const composition = await selectComposition({ serveUrl: bundleLocation, id: COMPOSITION_ID, inputProps });
 
-  const outputLocation = path.join(OUTPUT_DIR, outputFilenameForStt(quote.stt));
+  const outputLocation = path.join(OUTPUT_DIR, outputFilenameForVideo(sttVideo));
 
   await renderMedia({
     composition,
@@ -47,6 +81,8 @@ async function renderQuote(bundleLocation, quote) {
 }
 
 async function main() {
+  const { logo } = parseArgs(process.argv.slice(2));
+
   let quotes;
   try {
     quotes = await getQuotesReadyToRender();
@@ -62,29 +98,45 @@ async function main() {
     return;
   }
 
-  console.log(`Tìm thấy ${quotes.length} quote sẵn sàng render.`);
+  const bySttVideo = groupQuotesBySttVideo(quotes);
+  console.log(`Tìm thấy ${quotes.length} quote sẵn sàng render, thuộc ${bySttVideo.size} video nguồn.`);
+  if (logo) {
+    console.log(`Sẽ hiển thị logo "@${logo}" trong video.`);
+  }
+
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
   console.log('Đang bundle Remotion composition...');
   const bundleLocation = await bundle({ entryPoint: ENTRY_POINT, publicDir: OUTPUT_DIR });
 
   const sttThanhCong = [];
-  const sttLoi = [];
+  const videoLoi = [];
 
-  for (const quote of quotes) {
+  for (const [sttVideo, quotesOfVideo] of bySttVideo) {
+    console.log(`\n▶ Đang render video cho STT Video nguồn ${sttVideo} (${quotesOfVideo.length} quote)`);
+    const { segments, sttDaDung } = buildSegments(quotesOfVideo);
+
+    if (segments.length === 0) {
+      console.error(`  ✘ Bỏ qua video STT ${sttVideo}: không có quote nào đủ ảnh nền để render.`);
+      videoLoi.push(sttVideo);
+      continue;
+    }
+
     try {
-      const outputLocation = await renderQuote(bundleLocation, quote);
-      console.log(`  ✔ Đã render quote STT ${quote.stt} -> ${path.basename(outputLocation)}`);
-      sttThanhCong.push(quote.stt);
+      const outputLocation = await renderVideo(bundleLocation, sttVideo, segments, logo);
+      console.log(
+        `  ✔ Đã render -> ${path.basename(outputLocation)} (${segments.length} quote, quote đầu là title)`
+      );
+      sttThanhCong.push(...sttDaDung);
     } catch (err) {
-      console.error(`  ✘ Lỗi khi render quote STT ${quote.stt}: ${err.message}`);
-      sttLoi.push(quote.stt);
+      console.error(`  ✘ Lỗi khi render video STT ${sttVideo}: ${err.message}`);
+      videoLoi.push(sttVideo);
     }
   }
 
-  console.log(`\nHoàn tất render. ${sttThanhCong.length}/${quotes.length} quote thành công.`);
-  if (sttLoi.length > 0) {
-    console.log(`Quote bị lỗi, chưa render được (STT): ${sttLoi.join(', ')}`);
+  console.log(`\nHoàn tất render. ${bySttVideo.size - videoLoi.length}/${bySttVideo.size} video thành công.`);
+  if (videoLoi.length > 0) {
+    console.log(`Video bị lỗi, chưa render được (STT Video nguồn): ${videoLoi.join(', ')}`);
   }
 
   for (const stt of sttThanhCong) {

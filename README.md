@@ -151,24 +151,32 @@ muốn dùng:
 ## Dựng video bằng Remotion
 
 Sau khi quote đã có ảnh nền (cột `image_filename` ở tab `Quotes` không trống — xem mục trên),
-dựng video ngắn (MP4, 1080x1920, ~7 giây/video) bằng [Remotion](https://www.remotion.dev), thay
-cho việc thao tác tay qua Canva Bulk Create ở kế hoạch ban đầu (xem Milestone 5b ở `ROADMAP.md`
-để biết lý do đổi hướng).
+dựng video ngắn (MP4, 1080x1920) bằng [Remotion](https://www.remotion.dev), thay cho việc thao
+tác tay qua Canva Bulk Create ở kế hoạch ban đầu (xem Milestone 5b ở `ROADMAP.md` để biết lý do
+đổi hướng).
 
 ```bash
 npm run render:quotes
+npm run render:quotes -- --logo=song.canbang   # kèm badge "@song.canbang" trong video
 ```
 
 Script (`src/render-quotes.js`) sẽ:
 1. Đọc tab `Quotes`, lọc các quote có Trạng thái sử dụng = "Chưa dùng" **và** đã có
-   `image_filename`
-2. Với mỗi quote, render 1 file MP4 vào `output/`, đặt tên theo STT (ví dụ `output/quote_007.mp4`)
-   — dùng composition `src/remotion/QuoteVideo.jsx`: ảnh nền phủ full khung, overlay đen mờ để
-   chữ luôn đọc được, quote lớn fade-in giữa khung, context nhỏ hơn phía dưới
-3. Nếu 1 quote lỗi (ví dụ ảnh nền không tồn tại trong `output/images/`) → log lỗi, tiếp tục
-   quote kế tiếp, không dừng cả vòng lặp
-4. Sau khi render xong, tự cập nhật Trạng thái sử dụng thành "Đã dùng" cho các quote **render
-   thành công** trên Google Sheet (quote lỗi vẫn giữ nguyên "Chưa dùng" để chạy lại lần sau)
+   `image_filename`, rồi **gom theo cột "STT Video nguồn"**
+2. Với mỗi video nguồn, ghép các quote cùng video thành **1 file MP4 duy nhất**, phát nối tiếp
+   nhau, đặt tên theo STT Video nguồn (ví dụ `output/video_003.mp4`). Quote đầu tiên của mỗi
+   video được hiểu là **title**, hiển thị to/đậm hơn hẳn các quote còn lại. Quote hiển thị ở
+   **phía trên khung hình** (không phải giữa trang), trong khối có background mờ (blur) + chữ có
+   viền đen (text-stroke) để luôn nổi rõ trên mọi ảnh nền, fade-in nhẹ. Cột "Bối cảnh/ý nghĩa"
+   không hiển thị trong video — chỉ dùng nội bộ lúc trích quote
+3. Nếu bật cờ `--logo=<tên>` → hiện badge `@<tên>` ở dưới khung trong suốt video (mặc định
+   không hiện gì nếu không truyền cờ)
+4. Nếu 1 quote lỗi (ví dụ ảnh nền không tồn tại trong `output/images/`) → bỏ qua đúng quote đó,
+   vẫn ghép các quote còn lại của cùng video; nếu cả video không còn quote nào đủ ảnh → log lỗi,
+   bỏ qua cả video, tiếp tục video kế tiếp, không dừng cả vòng lặp
+5. Sau khi render xong, tự cập nhật Trạng thái sử dụng thành "Đã dùng" cho các quote **đã được
+   đưa vào video render thành công** trên Google Sheet (quote bị bỏ qua vẫn giữ nguyên
+   "Chưa dùng" để chạy lại lần sau)
 
 Lần chạy đầu tiên, Remotion sẽ tự tải về 1 bản Chrome headless riêng (khác Chrome cài sẵn trên
 máy) để render — cần có mạng, chỉ tải 1 lần.
@@ -199,10 +207,11 @@ quotetracker/
     ├── image-gen.js            # sinh ảnh nền cho quote (đang tắt, xem mục ở trên)
     ├── render-quotes.js        # dựng video MP4 bằng Remotion, xem mục "Dựng video bằng Remotion"
     ├── config.js
-    ├── remotion/                # composition Remotion (QuoteVideo) + Root đăng ký composition
+    ├── remotion/                # composition Remotion + Root đăng ký composition
     │   ├── index.jsx
     │   ├── Root.jsx
-    │   └── QuoteVideo.jsx
+    │   ├── VideoSequence.jsx    # ghép nhiều quote cùng "STT Video nguồn" thành 1 video
+    │   └── QuoteVideo.jsx       # 1 slide/quote (dùng bên trong VideoSequence)
     └── prompts/                # thư viện prompt theo chủ đề
         ├── index.js
         └── quote.js
