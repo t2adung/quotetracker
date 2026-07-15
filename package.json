@@ -5,12 +5,18 @@
   "main": "src/index.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "render:quotes": "node src/render-quotes.js"
   },
   "license": "UNLICENSED",
   "dependencies": {
     "@google/genai": "^2.11.0",
+    "@remotion/cli": "^4.0.489",
+    "@remotion/renderer": "^4.0.489",
     "dotenv": "^16.4.5",
-    "googleapis": "^144.0.0"
+    "googleapis": "^144.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.489"
   }
 }

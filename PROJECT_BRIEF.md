@@ -2,7 +2,9 @@
 
 ## Mục tiêu
 Tự động hoá việc trích quote hay từ video YouTube (dùng Gemini API), ghi vào Google Sheet
-trung tâm, để sau đó dựng hàng loạt video ngắn (TikTok/YouTube Shorts) bằng Canva Bulk Create.
+trung tâm, để sau đó dựng hàng loạt video ngắn (TikTok/YouTube Shorts) bằng Remotion (render
+video tự động bằng code — xem Milestone 5b ở `ROADMAP.md`; ~~Canva Bulk Create~~ không còn
+áp dụng cho bước dựng video).
 
 Đây là 1 script/worker độc lập, **không phải** web app, không cần UI. Chạy bằng lệnh CLI,
 local-first (chưa deploy VPS ở giai đoạn này).
@@ -29,7 +31,9 @@ local-first (chưa deploy VPS ở giai đoạn này).
    timestamp, hook_score)
 3. Ghi từng quote vào tab `Quotes`, tham chiếu đúng STT video nguồn
 4. Cập nhật lại Trạng thái xử lý ở tab `Nguồn Video` thành "Đã trích quote"
-5. (Ngoài phạm vi script này) Người dùng tự vào Canva Bulk Create, kết nối trực tiếp Sheet này
+5. Với các quote đã có ảnh nền (chưa dùng), gom theo "STT Video nguồn": render 1 video MP4/video
+   nguồn bằng Remotion (quote đầu tiên là title, xem Milestone 5b), cập nhật Trạng thái sử dụng
+   thành "Đã dùng" cho các quote đã đưa vào video
 
 ## Tech stack
 - Node.js (phiên bản LTS hiện tại)
@@ -53,7 +57,8 @@ local-first (chưa deploy VPS ở giai đoạn này).
 
 ## Ngoài phạm vi (không làm ở giai đoạn này)
 - Không deploy VPS/cloud riêng — GitHub Actions đã đáp ứng đủ nhu cầu tự động hoá ở quy mô hiện tại
-- Không tự động hoá phần Canva — vẫn thao tác tay
+- ~~Không tự động hoá phần Canva — vẫn thao tác tay~~ (không còn áp dụng — đã đổi sang Remotion,
+  bước dựng video giờ tự động hoá hoàn toàn bằng code, xem Milestone 5b ở `ROADMAP.md`)
 - Không cần test framework phức tạp — vài script kiểm tra thủ công là đủ ở giai đoạn MVP
 
 ## Định nghĩa "xong" (Definition of Done) cho MVP

@@ -3,6 +3,7 @@ const config = require('./config');
 
 const STATUS_CHUA_XU_LY = 'Chưa xử lý';
 const STATUS_QUOTE_CHUA_DUNG = 'Chưa dùng';
+const STATUS_QUOTE_DA_DUNG = 'Đã dùng';
 
 // Dữ liệu thật bắt đầu từ hàng 4 (hàng 1: banner hướng dẫn, hàng 3: header)
 const VIDEOS_RANGE = `${config.SHEET_TAB_VIDEOS}!A4:I`;
@@ -15,6 +16,8 @@ const QUOTES_FIRST_DATA_ROW = 4;
 // Cột J = "image_filename" (tên file ảnh nền, ví dụ quote_001.png) — cột mới, thêm thủ công
 // vào header hàng 3 của tab Quotes trên Google Sheet thật trước khi dùng updateQuoteImageFilename.
 const QUOTES_IMAGE_FILENAME_COLUMN = 'J';
+// Cột G = "Trạng thái sử dụng"
+const QUOTES_STATUS_COLUMN = 'G';
 
 async function getSheetsClient() {
   const auth = new google.auth.GoogleAuth({
@@ -140,6 +143,59 @@ async function updateQuoteImageFilename(stt, filename) {
   }
 }
 
+async function getQuotesReadyToRender() {
+  try {
+    const sheets = await getSheetsClient();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.SHEET_ID,
+      range: QUOTES_FULL_RANGE,
+    });
+
+    const rows = res.data.values || [];
+
+    return rows
+      .filter((row) => row[0] && row[6] === STATUS_QUOTE_CHUA_DUNG && row[9])
+      .map((row) => ({
+        stt: row[0],
+        sttVideo: row[1],
+        quote: row[2],
+        imageFilename: row[9],
+      }));
+  } catch (err) {
+    throw new Error(
+      `Lỗi khi đọc quote sẵn sàng render từ tab "${config.SHEET_TAB_QUOTES}": ${err.message}`
+    );
+  }
+}
+
+async function updateQuoteStatus(stt, newStatus) {
+  try {
+    const sheets = await getSheetsClient();
+
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.SHEET_ID,
+      range: QUOTES_STT_RANGE,
+    });
+    const rows = res.data.values || [];
+    const rowOffset = rows.findIndex((row) => String(row[0]) === String(stt));
+
+    if (rowOffset === -1) {
+      throw new Error(`Không tìm thấy quote có STT = ${stt} trong tab "${config.SHEET_TAB_QUOTES}"`);
+    }
+
+    const sheetRowNumber = rowOffset + QUOTES_FIRST_DATA_ROW;
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: config.SHEET_ID,
+      range: `${config.SHEET_TAB_QUOTES}!${QUOTES_STATUS_COLUMN}${sheetRowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [[newStatus]] },
+    });
+  } catch (err) {
+    throw new Error(`Lỗi khi cập nhật trạng thái sử dụng cho quote STT ${stt}: ${err.message}`);
+  }
+}
+
 async function updateVideoStatus(stt, newStatus) {
   try {
     const sheets = await getSheetsClient();
@@ -174,4 +230,7 @@ module.exports = {
   updateVideoStatus,
   updateQuoteImageFilename,
   getQuotesMissingImages,
+  getQuotesReadyToRender,
+  updateQuoteStatus,
+  STATUS_QUOTE_DA_DUNG,
 };
