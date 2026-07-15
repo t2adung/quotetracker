@@ -25,4 +25,7 @@ module.exports = {
   SHEET_TAB_VIDEOS: process.env.SHEET_TAB_VIDEOS || 'Nguồn Video',
   SHEET_TAB_QUOTES: process.env.SHEET_TAB_QUOTES || 'Quotes',
   SHEET_TAB_SCRIPTS: process.env.SHEET_TAB_SCRIPTS || 'Scripts',
+  // Không bắt buộc phải có ngay từ đầu — chỉ cần khi dùng cờ --upload-drive, tự validate lúc đó
+  // (xem src/drive.js), không chặn các lệnh khác không liên quan tới Drive.
+  GOOGLE_DRIVE_FOLDER_ID: process.env.GOOGLE_DRIVE_FOLDER_ID || '',
 };

@@ -170,6 +170,7 @@ tác tay qua Canva Bulk Create ở kế hoạch ban đầu (xem Milestone 5b ở
 ```bash
 npm run render:quotes
 npm run render:quotes -- --logo=song.canbang   # kèm badge "@song.canbang sưu tầm" trong video
+npm run render:quotes -- --upload-drive        # upload video lên Google Drive + ghi link vào Sheet
 ```
 
 Script (`src/render-quotes.js`) sẽ:
@@ -192,6 +193,37 @@ Script (`src/render-quotes.js`) sẽ:
 
 Lần chạy đầu tiên, Remotion sẽ tự tải về 1 bản Chrome headless riêng (khác Chrome cài sẵn trên
 máy) để render — cần có mạng, chỉ tải 1 lần.
+
+## Upload video output lên Google Drive (tuỳ chọn, mặc định tắt)
+
+Vì `output/` không được commit vào Git (và sẽ mất trắng sau mỗi lần chạy trên GitHub Actions —
+runner là máy tạm), có thể upload thẳng video vừa render lên 1 thư mục Google Drive cố định rồi
+ghi link vào cột **"Link video output"** (cột H, tab `Quotes` — cột này cũ vốn để cho Canva,
+giờ không dùng nữa nên tái dùng luôn).
+
+Setup 1 lần:
+1. Vào [Google Cloud Console](https://console.cloud.google.com) → cùng project đang dùng cho
+   Sheets API → bật thêm **Google Drive API**
+2. Tạo 1 thư mục trên Google Drive của bạn (thủ công) → **Share** → thêm email service account
+   (dạng `xxx@xxx.iam.gserviceaccount.com`, xem trong `service-account.json`) với quyền
+   **Editor**
+3. Lấy Folder ID trong URL thư mục
+   (`https://drive.google.com/drive/folders/XXXXX` → `XXXXX`), điền vào `.env`:
+   ```
+   GOOGLE_DRIVE_FOLDER_ID=XXXXX
+   ```
+
+Dùng:
+```bash
+npm run render:quotes -- --upload-drive
+```
+
+Script sẽ upload từng video vừa render thành công vào thư mục trên, rồi ghi cùng 1 link đó vào
+cột H cho mọi quote đã được ghép vào video đó. Không tự đổi quyền chia sẻ file (không public) —
+vì thư mục vốn thuộc Drive của bạn nên mở link lên vẫn xem/tải được khi đăng nhập đúng tài khoản
+Google đó. Nếu 1 video upload lỗi (mất mạng, hết quota...) → log lỗi, bỏ qua video đó (không ghi
+link), vẫn tiếp tục các video khác, Trạng thái sử dụng của quote vẫn được cập nhật bình thường dù
+upload lỗi.
 
 ## Chạy tự động (GitHub Actions)
 
@@ -218,6 +250,7 @@ quotetracker/
     ├── gemini.js
     ├── image-gen.js            # sinh ảnh nền cho quote (đang tắt, xem mục ở trên)
     ├── render-quotes.js        # dựng video MP4 bằng Remotion, xem mục "Dựng video bằng Remotion"
+    ├── drive.js                # upload video lên Google Drive (đang tắt, xem mục ở trên)
     ├── config.js
     ├── remotion/                # composition Remotion + Root đăng ký composition
     │   ├── index.jsx

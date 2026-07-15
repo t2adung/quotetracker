@@ -120,6 +120,39 @@ không qua Canva.
 các quote nối tiếp nhau đúng thứ tự, chữ ở phía trên khung + đọc rõ (có border/background mờ) →
 Sheet tự cập nhật đúng trạng thái.
 
+## Milestone 5c — Upload video output lên Google Drive + ghi link vào Sheet
+
+Mục tiêu: sau khi render MP4 xong, upload thẳng lên 1 thư mục Google Drive cố định (dùng chung
+service account đã có, không cần OAuth tương tác) rồi ghi link vào cột `Link video output
+(Canva)` (cột H, tab `Quotes`) — cột này không còn dùng cho Canva nữa, tái dùng luôn thay vì
+thêm cột mới. Cần thiết trước khi làm Milestone 6, vì runner GitHub Actions là máy tạm, file
+trong `output/` sẽ mất sau khi job chạy xong nếu không upload đi nơi khác.
+
+- [ ] Bật **Google Drive API** cho cùng Google Cloud project đang dùng cho Sheets API
+- [ ] Tạo 1 thư mục trên Google Drive (thủ công), Share thư mục đó cho email service account
+      (dạng `xxx@xxx.iam.gserviceaccount.com`) với quyền **Editor**, lấy Folder ID trong URL
+- [ ] `.env.example` + `src/config.js`: thêm biến `GOOGLE_DRIVE_FOLDER_ID` (không bắt buộc phải
+      có ngay từ đầu — chỉ validate lúc thực sự dùng tính năng, giống cách `--gen-images` không
+      bắt buộc)
+- [ ] `src/drive.js`: hàm `uploadVideoToDrive(filePath, fileName)` dùng chung service account
+      (thêm scope Drive), upload file vào đúng `GOOGLE_DRIVE_FOLDER_ID`, trả về link xem file
+      (`webViewLink`). Không tự đổi quyền chia sẻ file (không set "Anyone with link") — thư mục
+      đã thuộc quyền của bạn từ trước nên bạn tự vào Drive lấy/tải video khi cần, không cần link
+      public
+- [ ] `src/sheets.js`: thêm hàm `updateQuoteOutputLink(stt, link)` ghi vào cột H tab `Quotes`
+      (tái dùng cột `Link video output (Canva)` có sẵn)
+- [ ] `src/render-quotes.js`: thêm cờ `--upload-drive` (mặc định tắt) — sau khi render 1 video
+      thành công thì upload lên Drive, rồi ghi cùng 1 link đó vào cột H cho **mọi quote STT** đã
+      được ghép vào video đó (dùng lại danh sách `sttDaDung` đã có sẵn)
+- [ ] Lỗi khi upload 1 video (mất mạng, hết quota Drive...) → log lỗi rõ ràng bằng tiếng Việt,
+      không ghi link cho video đó, vẫn tiếp tục xử lý các video khác, không dừng cả vòng lặp
+- [ ] Cập nhật `README.md`: hướng dẫn tạo + share thư mục Drive, thêm `GOOGLE_DRIVE_FOLDER_ID`
+      vào `.env`, cách dùng cờ `--upload-drive`
+
+**Nghiệm thu**: chạy `npm run render:quotes -- --upload-drive` với ít nhất 1 video có sẵn ảnh
+nền → video MP4 xuất hiện đúng trong thư mục Drive đã cấu hình → cột `Link video output` ở tab
+`Quotes` được điền đúng link cho các quote thuộc video đó → mở link, xem/tải được video.
+
 ## Milestone 6 — Tự động hoá bằng GitHub Actions (chỉ làm sau khi Milestone 1-5 đã chạy ổn định local)
 Mục tiêu: script tự chạy theo lịch, không cần bật máy tay mỗi lần. Dùng GitHub Actions vì repo
 đang Public → chạy hoàn toàn miễn phí, không cần VPS.

@@ -21,6 +21,9 @@ const QUOTES_FIRST_DATA_ROW = 4;
 const QUOTES_IMAGE_FILENAME_COLUMN = 'J';
 // Cột G = "Trạng thái sử dụng"
 const QUOTES_STATUS_COLUMN = 'G';
+// Cột H = "Link video output (Canva)" — không còn dùng cho Canva, tái dùng để lưu link Drive
+// của video Remotion đã render (xem uploadVideoToDrive ở drive.js).
+const QUOTES_OUTPUT_LINK_COLUMN = 'H';
 
 // Tab Scripts (mới) — cột: A STT Script, B STT Video nguồn, C Quote IDs đã dùng,
 // D Full Script, E Segments (JSON dạng text), F Trạng thái. Cần tự tạo tab này thủ công
@@ -276,6 +279,34 @@ async function updateQuoteStatus(stt, newStatus) {
   }
 }
 
+async function updateQuoteOutputLink(stt, link) {
+  try {
+    const sheets = await getSheetsClient();
+
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.SHEET_ID,
+      range: QUOTES_STT_RANGE,
+    });
+    const rows = res.data.values || [];
+    const rowOffset = rows.findIndex((row) => String(row[0]) === String(stt));
+
+    if (rowOffset === -1) {
+      throw new Error(`Không tìm thấy quote có STT = ${stt} trong tab "${config.SHEET_TAB_QUOTES}"`);
+    }
+
+    const sheetRowNumber = rowOffset + QUOTES_FIRST_DATA_ROW;
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: config.SHEET_ID,
+      range: `${config.SHEET_TAB_QUOTES}!${QUOTES_OUTPUT_LINK_COLUMN}${sheetRowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [[link]] },
+    });
+  } catch (err) {
+    throw new Error(`Lỗi khi ghi link video output cho quote STT ${stt}: ${err.message}`);
+  }
+}
+
 async function updateVideoStatus(stt, newStatus) {
   try {
     const sheets = await getSheetsClient();
@@ -422,6 +453,7 @@ module.exports = {
   getQuotesMissingImages,
   getQuotesReadyToRender,
   updateQuoteStatus,
+  updateQuoteOutputLink,
   getScriptsToProcess,
   appendScript,
   updateScriptStatus,

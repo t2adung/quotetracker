@@ -3,7 +3,13 @@ const path = require('path');
 require('./config');
 const { bundle } = require('@remotion/bundler');
 const { renderMedia, selectComposition } = require('@remotion/renderer');
-const { getQuotesReadyToRender, updateQuoteStatus, STATUS_QUOTE_DA_DUNG } = require('./sheets');
+const {
+  getQuotesReadyToRender,
+  updateQuoteStatus,
+  updateQuoteOutputLink,
+  STATUS_QUOTE_DA_DUNG,
+} = require('./sheets');
+const { uploadVideoToDrive } = require('./drive');
 
 const COMPOSITION_ID = 'VideoSequence';
 const ENTRY_POINT = path.join(__dirname, 'remotion', 'index.jsx');
@@ -12,11 +18,15 @@ const OUTPUT_DIR = path.join(__dirname, '..', 'output');
 const IMAGES_DIR = path.join(OUTPUT_DIR, 'images');
 
 // --logo=<tên>: hiển thị "@<tên> sưu tầm" trong video (vd --logo=song.canbang). Bỏ trống thì không hiện.
+// --upload-drive: sau khi render xong 1 video, upload lên Google Drive và ghi link vào cột
+// "Link video output" ở tab Quotes cho mọi quote đã ghép vào video đó. Mặc định TẮT.
 function parseArgs(argv) {
-  const args = { logo: '' };
+  const args = { logo: '', uploadDrive: false };
   for (const arg of argv) {
     if (arg.startsWith('--logo=')) {
       args.logo = arg.slice('--logo='.length);
+    } else if (arg === '--upload-drive') {
+      args.uploadDrive = true;
     }
   }
   return args;
@@ -81,7 +91,7 @@ async function renderVideo(bundleLocation, sttVideo, segments, logo) {
 }
 
 async function main() {
-  const { logo } = parseArgs(process.argv.slice(2));
+  const { logo, uploadDrive } = parseArgs(process.argv.slice(2));
 
   let quotes;
   try {
@@ -128,6 +138,21 @@ async function main() {
         `  ✔ Đã render -> ${path.basename(outputLocation)} (${segments.length} quote, quote đầu là title)`
       );
       sttThanhCong.push(...sttDaDung);
+
+      if (uploadDrive) {
+        try {
+          const fileName = path.basename(outputLocation);
+          console.log(`  ⇪ Đang upload ${fileName} lên Google Drive...`);
+          const link = await uploadVideoToDrive(outputLocation, fileName);
+          console.log(`  ✔ Đã upload, link: ${link}`);
+
+          for (const stt of sttDaDung) {
+            await updateQuoteOutputLink(stt, link);
+          }
+        } catch (err) {
+          console.error(`  ✘ Lỗi khi upload video STT ${sttVideo} lên Drive: ${err.message}`);
+        }
+      }
     } catch (err) {
       console.error(`  ✘ Lỗi khi render video STT ${sttVideo}: ${err.message}`);
       videoLoi.push(sttVideo);
