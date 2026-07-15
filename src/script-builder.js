@@ -115,4 +115,64 @@ async function buildScriptFromQuotes(videoTitle, quotesArray) {
   return script;
 }
 
-module.exports = { buildScriptFromQuotes };
+function buildConsistencyPrompt(scriptJson) {
+  const segmentsText = scriptJson.segments
+    .map((s, i) => `${i + 1}. [${s.type}] ${s.text}`)
+    .join('\n');
+
+  return `Bạn là biên tập viên kiểm duyệt kịch bản video ngắn. Dưới đây là 1 kịch bản đã được
+ghép từ nhiều quote của cùng 1 video nguồn, giọng điệu (tone) dự kiến: "${scriptJson.tone || ''}"
+
+Các đoạn theo đúng thứ tự:
+${segmentsText}
+
+Toàn văn kịch bản:
+"${scriptJson.fullScript}"
+
+Hãy kiểm tra kỹ 3 điều sau:
+1. Có đoạn nào MÂU THUẪN Ý với đoạn khác trong cùng kịch bản không (ví dụ đoạn trước nói A, đoạn
+   sau lại phủ định hoặc nói ngược lại A)
+2. Có đoạn nào LẶP Ý (nói lại gần như nguyên ý của 1 đoạn trước đó) không
+3. Giọng điệu (tone) có NHẤT QUÁN xuyên suốt từ đầu đến cuối không, hay bị lệch giữa các đoạn
+   (ví dụ đoạn thì trang trọng, đoạn thì suồng sã)
+
+CHỈ trả về 1 object JSON theo đúng định dạng sau, không thêm bất kỳ text/markdown nào khác:
+{ "is_consistent": true hoặc false, "reason": "giải thích ngắn gọn lý do — bắt buộc nêu rõ nếu is_consistent là false; có thể để chuỗi rỗng nếu is_consistent là true" }`;
+}
+
+function parseConsistencyResponse(text) {
+  const match = (text || '').match(/\{[\s\S]*\}/);
+  const jsonText = match ? match[0] : text;
+  const parsed = JSON.parse(jsonText);
+
+  return {
+    isConsistent: parsed.is_consistent === true,
+    reason: parsed.reason || '',
+  };
+}
+
+// Gọi thêm 1 lượt Gemini để tự kiểm tra (self-critique) kịch bản vừa ghép ở buildScriptFromQuotes
+// có mâu thuẫn ý, lặp ý, hoặc lệch giọng điệu không. Trả về { isConsistent, reason }.
+async function validateScriptConsistency(scriptJson) {
+  const prompt = buildConsistencyPrompt(scriptJson);
+
+  let rawText;
+  try {
+    rawText = await callGemini(prompt);
+  } catch (err) {
+    throw new Error(`Lỗi khi gọi Gemini API để kiểm tra tính nhất quán kịch bản: ${err.message}`);
+  }
+
+  try {
+    return parseConsistencyResponse(rawText || '');
+  } catch (err) {
+    // Không đọc được kết quả kiểm tra thì coi như KHÔNG nhất quán (an toàn là trên hết) — thà bỏ
+    // qua 1 script có thể vẫn ổn, còn hơn lỡ ghi vào Sheet 1 script chưa được kiểm tra kỹ
+    return {
+      isConsistent: false,
+      reason: `Không đọc được kết quả kiểm tra từ Gemini (lỗi parse JSON: ${err.message})`,
+    };
+  }
+}
+
+module.exports = { buildScriptFromQuotes, validateScriptConsistency };
