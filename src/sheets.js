@@ -66,6 +66,52 @@ async function getUnprocessedVideos() {
   }
 }
 
+// Đọc 1 video theo đúng STT, BẤT KỂ Trạng thái xử lý — dùng cho chế độ --stt-video để nhắm vào
+// đúng 1 video cụ thể (kể cả video đã xử lý xong rồi), khác với getUnprocessedVideos() chỉ trả
+// về video có Trạng thái xử lý = "Chưa xử lý". Trả về null nếu không tìm thấy STT.
+async function getVideoByStt(stt) {
+  try {
+    const sheets = await getSheetsClient();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.SHEET_ID,
+      range: VIDEOS_RANGE,
+    });
+
+    const rows = res.data.values || [];
+    const row = rows.find((r) => r[0] && String(r[0]) === String(stt));
+
+    if (!row) return null;
+
+    return { stt: row[0], link: row[1], tieuDe: row[2], chuDe: row[4] };
+  } catch (err) {
+    throw new Error(
+      `Lỗi khi đọc video STT ${stt} từ tab "${config.SHEET_TAB_VIDEOS}": ${err.message}`
+    );
+  }
+}
+
+// Đọc toàn bộ quote ĐÃ CÓ SẴN của 1 video (theo STT Video nguồn) trong tab Quotes — dùng cho chế
+// độ --stt-video khi video đã có quote sẵn, để tái dùng thay vì gọi lại Gemini trích quote.
+async function getQuotesByVideoStt(sttVideo) {
+  try {
+    const sheets = await getSheetsClient();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.SHEET_ID,
+      range: QUOTES_FULL_RANGE,
+    });
+
+    const rows = res.data.values || [];
+
+    return rows
+      .filter((row) => row[0] && String(row[1]) === String(sttVideo))
+      .map((row) => ({ stt: row[0], quote: row[2] }));
+  } catch (err) {
+    throw new Error(
+      `Lỗi khi đọc quote của video STT ${sttVideo} từ tab "${config.SHEET_TAB_QUOTES}": ${err.message}`
+    );
+  }
+}
+
 // Trả về 1 Set các "STT Video nguồn" đã có ít nhất 1 quote trong tab Quotes — dùng để bỏ qua
 // video đã có quote rồi (phòng trường hợp Trạng thái xử lý ở tab Nguồn Video chưa kịp cập nhật
 // đúng do lần chạy trước bị lỗi giữa chừng), tránh ghi trùng quote cho cùng 1 video.
@@ -367,6 +413,8 @@ async function updateScriptStatus(sttScript, newStatus) {
 
 module.exports = {
   getUnprocessedVideos,
+  getVideoByStt,
+  getQuotesByVideoStt,
   getSttVideosWithQuotes,
   appendQuotes,
   updateVideoStatus,
