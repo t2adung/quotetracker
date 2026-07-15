@@ -4,6 +4,8 @@ const config = require('./config');
 const STATUS_CHUA_XU_LY = 'Chưa xử lý';
 const STATUS_QUOTE_CHUA_DUNG = 'Chưa dùng';
 const STATUS_QUOTE_DA_DUNG = 'Đã dùng';
+const STATUS_SCRIPT_CHUA_DUNG = 'Chưa dùng';
+const STATUS_SCRIPT_DA_DUNG = 'Đã dùng';
 
 // Dữ liệu thật bắt đầu từ hàng 4 (hàng 1: banner hướng dẫn, hàng 3: header)
 const VIDEOS_RANGE = `${config.SHEET_TAB_VIDEOS}!A4:I`;
@@ -18,6 +20,16 @@ const QUOTES_FIRST_DATA_ROW = 4;
 const QUOTES_IMAGE_FILENAME_COLUMN = 'J';
 // Cột G = "Trạng thái sử dụng"
 const QUOTES_STATUS_COLUMN = 'G';
+
+// Tab Scripts (mới) — cột: A STT Script, B STT Video nguồn, C Quote IDs đã dùng,
+// D Full Script, E Segments (JSON dạng text), F Trạng thái. Cần tự tạo tab này thủ công
+// trên Google Sheet thật trước khi dùng các hàm bên dưới.
+const SCRIPTS_STT_RANGE = `${config.SHEET_TAB_SCRIPTS}!A4:A`;
+const SCRIPTS_FULL_RANGE = `${config.SHEET_TAB_SCRIPTS}!A4:F`;
+const SCRIPTS_APPEND_RANGE = `${config.SHEET_TAB_SCRIPTS}!A4:F`;
+const SCRIPTS_FIRST_DATA_ROW = 4;
+// Cột F = "Trạng thái"
+const SCRIPTS_STATUS_COLUMN = 'F';
 
 async function getSheetsClient() {
   const auth = new google.auth.GoogleAuth({
@@ -224,6 +236,113 @@ async function updateVideoStatus(stt, newStatus) {
   }
 }
 
+async function getScriptsToProcess() {
+  try {
+    const sheets = await getSheetsClient();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.SHEET_ID,
+      range: SCRIPTS_FULL_RANGE,
+    });
+
+    const rows = res.data.values || [];
+
+    return rows
+      .filter((row) => row[0] && row[5] === STATUS_SCRIPT_CHUA_DUNG)
+      .map((row) => {
+        let segments = [];
+        try {
+          segments = JSON.parse(row[4] || '[]');
+        } catch (err) {
+          console.error(
+            `Lỗi khi đọc segments (JSON) của script STT ${row[0]}, bỏ qua segments: ${err.message}`
+          );
+        }
+
+        return {
+          sttScript: row[0],
+          sttVideo: row[1],
+          quoteIds: row[2],
+          fullScript: row[3],
+          segments,
+        };
+      });
+  } catch (err) {
+    throw new Error(
+      `Lỗi khi đọc dữ liệu từ tab "${config.SHEET_TAB_SCRIPTS}" trong Google Sheet: ${err.message}`
+    );
+  }
+}
+
+async function appendScript(sttVideo, quoteIds, fullScript, segments) {
+  try {
+    const sheets = await getSheetsClient();
+
+    const existingRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.SHEET_ID,
+      range: SCRIPTS_STT_RANGE,
+    });
+    const existingRows = existingRes.data.values || [];
+    const lastStt = existingRows.reduce((max, row) => {
+      const n = Number(row[0]);
+      return Number.isFinite(n) && n > max ? n : max;
+    }, 0);
+
+    const sttScript = lastStt + 1;
+    const row = [
+      sttScript,
+      sttVideo,
+      quoteIds.join(', '),
+      fullScript,
+      JSON.stringify(segments),
+      STATUS_SCRIPT_CHUA_DUNG,
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: config.SHEET_ID,
+      range: SCRIPTS_APPEND_RANGE,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: { values: [row] },
+    });
+
+    return { sttScript, sttVideo, fullScript };
+  } catch (err) {
+    throw new Error(
+      `Lỗi khi ghi script vào tab "${config.SHEET_TAB_SCRIPTS}" cho video STT ${sttVideo}: ${err.message}`
+    );
+  }
+}
+
+async function updateScriptStatus(sttScript, newStatus) {
+  try {
+    const sheets = await getSheetsClient();
+
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.SHEET_ID,
+      range: SCRIPTS_STT_RANGE,
+    });
+    const rows = res.data.values || [];
+    const rowOffset = rows.findIndex((row) => String(row[0]) === String(sttScript));
+
+    if (rowOffset === -1) {
+      throw new Error(
+        `Không tìm thấy script có STT = ${sttScript} trong tab "${config.SHEET_TAB_SCRIPTS}"`
+      );
+    }
+
+    const sheetRowNumber = rowOffset + SCRIPTS_FIRST_DATA_ROW;
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: config.SHEET_ID,
+      range: `${config.SHEET_TAB_SCRIPTS}!${SCRIPTS_STATUS_COLUMN}${sheetRowNumber}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [[newStatus]] },
+    });
+  } catch (err) {
+    throw new Error(`Lỗi khi cập nhật trạng thái cho script STT ${sttScript}: ${err.message}`);
+  }
+}
+
 module.exports = {
   getUnprocessedVideos,
   appendQuotes,
@@ -232,5 +351,9 @@ module.exports = {
   getQuotesMissingImages,
   getQuotesReadyToRender,
   updateQuoteStatus,
+  getScriptsToProcess,
+  appendScript,
+  updateScriptStatus,
   STATUS_QUOTE_DA_DUNG,
+  STATUS_SCRIPT_DA_DUNG,
 };
