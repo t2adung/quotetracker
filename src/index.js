@@ -5,9 +5,11 @@ const {
   updateVideoStatus,
   updateQuoteImageFilename,
   getQuotesMissingImages,
+  appendScript,
 } = require('./sheets');
 const { extractQuotes } = require('./gemini');
 const { generateBackgroundImage, pickSceneAnchor } = require('./image-gen');
+const { buildScriptFromQuotes, validateScriptConsistency } = require('./script-builder');
 
 const STATUS_DA_TRICH_QUOTE = 'Đã trích quote';
 
@@ -19,6 +21,8 @@ const STATUS_DA_TRICH_QUOTE = 'Đã trích quote';
 //                            quota giữa chừng lúc sinh ảnh, để không tốn token trích quote lại
 //   --image-scope=quote|video  sinh 1 ảnh/quote (mặc định) hay chỉ 1 ảnh dùng chung cho cả video
 //   --image-topic=<tên chủ đề> chọn style ảnh trong src/image-prompts/ (mặc định "quote")
+//   --script-topic=<tên chủ đề> chọn style ghép kịch bản trong src/script-prompts/ (mặc định
+//                            "quote")
 function parseArgs(argv) {
   const args = {
     topic: 'quote',
@@ -26,6 +30,7 @@ function parseArgs(argv) {
     resumeImages: false,
     imageScope: 'quote',
     imageTopic: 'quote',
+    scriptTopic: 'quote',
   };
   for (const arg of argv) {
     if (arg === '--gen-images') {
@@ -38,6 +43,8 @@ function parseArgs(argv) {
       args.imageScope = arg.slice('--image-scope='.length);
     } else if (arg.startsWith('--image-topic=')) {
       args.imageTopic = arg.slice('--image-topic='.length);
+    } else if (arg.startsWith('--script-topic=')) {
+      args.scriptTopic = arg.slice('--script-topic='.length);
     }
   }
   return args;
@@ -99,6 +106,49 @@ async function generateImagesForQuotes(quotes, imageScope, imageTopic) {
   }
 }
 
+// Ghép các quote vừa trích của 1 video thành 1 kịch bản (script), tự kiểm tra tính nhất quán,
+// rồi ghi vào tab Scripts nếu đạt. Không throw ra ngoài — lỗi ở bước này chỉ log lại, không
+// chặn việc cập nhật trạng thái video (quote đã ghi vào Sheet thành công là đủ để coi là xong).
+async function buildAndSaveScript(video, quotes, scriptTopic) {
+  console.log('  Đang ghép kịch bản từ các quote vừa trích...');
+
+  let script;
+  try {
+    script = await buildScriptFromQuotes(video.tieuDe, quotes, scriptTopic);
+  } catch (err) {
+    console.error(`  Lỗi khi ghép kịch bản: ${err.message}`);
+    return;
+  }
+
+  if (!script) {
+    console.log('  Không đủ quote phù hợp để ghép thành kịch bản mạch lạc — bỏ qua, không ghi script.');
+    return;
+  }
+
+  console.log('  Đang tự kiểm tra tính nhất quán của kịch bản...');
+  let consistency;
+  try {
+    consistency = await validateScriptConsistency(script);
+  } catch (err) {
+    console.error(`  Lỗi khi tự kiểm tra tính nhất quán kịch bản: ${err.message}`);
+    return;
+  }
+
+  if (!consistency.isConsistent) {
+    console.log(`  Kịch bản KHÔNG đạt kiểm tra tính nhất quán, bỏ qua không ghi vào Sheet. Lý do: ${consistency.reason}`);
+    return;
+  }
+
+  const quoteIds = [...new Set(script.segments.filter((s) => s.quoteId != null).map((s) => s.quoteId))];
+
+  try {
+    await appendScript(video.stt, quoteIds, script.fullScript, script.segments);
+    console.log('  Đã ghi kịch bản vào tab Scripts.');
+  } catch (err) {
+    console.error(`  Lỗi khi ghi kịch bản vào Sheet: ${err.message}`);
+  }
+}
+
 console.log('Config OK');
 
 async function runResumeImages(imageScope, imageTopic) {
@@ -132,7 +182,7 @@ async function runResumeImages(imageScope, imageTopic) {
   console.log('\nHoàn tất sinh ảnh còn thiếu.');
 }
 
-async function runExtractQuotes(topic, genImages, imageScope, imageTopic) {
+async function runExtractQuotes(topic, genImages, imageScope, imageTopic, scriptTopic) {
   let videos;
   try {
     videos = await getUnprocessedVideos();
@@ -158,6 +208,8 @@ async function runExtractQuotes(topic, genImages, imageScope, imageTopic) {
         await generateImagesForQuotes(createdQuotes, imageScope, imageTopic);
       }
 
+      await buildAndSaveScript(video, createdQuotes, scriptTopic);
+
       await updateVideoStatus(video.stt, STATUS_DA_TRICH_QUOTE);
       console.log(`  Đã cập nhật trạng thái "${STATUS_DA_TRICH_QUOTE}".`);
     } catch (err) {
@@ -173,7 +225,9 @@ async function runExtractQuotes(topic, genImages, imageScope, imageTopic) {
 }
 
 async function main() {
-  const { topic, genImages, resumeImages, imageScope, imageTopic } = parseArgs(process.argv.slice(2));
+  const { topic, genImages, resumeImages, imageScope, imageTopic, scriptTopic } = parseArgs(
+    process.argv.slice(2)
+  );
 
   if (resumeImages) {
     console.log('Chế độ --resume-images: chỉ sinh ảnh còn thiếu, không gọi lại Gemini trích quote.');
@@ -187,7 +241,7 @@ async function main() {
     );
   }
 
-  await runExtractQuotes(topic, genImages, imageScope, imageTopic);
+  await runExtractQuotes(topic, genImages, imageScope, imageTopic, scriptTopic);
 }
 
 main();
