@@ -7,7 +7,8 @@
   "scripts": {
     "start": "node src/index.js",
     "render:quotes": "node src/render-quotes.js",
-    "run:all": "node src/run-all.js"
+    "run:all": "node src/run-all.js",
+    "drive:login": "node scripts/drive-oauth-login.js"
   },
   "license": "UNLICENSED",
   "dependencies": {

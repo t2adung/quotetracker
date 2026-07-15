@@ -213,13 +213,34 @@ runner là máy tạm), có thể upload thẳng video vừa render lên 1 thư 
 ghi link vào cột **"Link video output"** (cột H, tab `Quotes` — cột này cũ vốn để cho Canva,
 giờ không dùng nữa nên tái dùng luôn).
 
+**Quan trọng — Service Account KHÔNG dùng để upload Drive được**: Service Account không có dung
+lượng lưu trữ riêng, nên dù đã share thư mục với quyền Editor, nó vẫn không tự tạo file mới được
+trong Drive cá nhân (lỗi `Service Accounts do not have storage quota`). Vì vậy upload Drive phải
+xác thực bằng OAuth qua chính tài khoản Google của bạn (Sheets vẫn dùng service account như cũ,
+không đổi gì — vì Sheets không tạo file mới, không bị giới hạn này).
+
 Setup 1 lần:
 1. Vào [Google Cloud Console](https://console.cloud.google.com) → cùng project đang dùng cho
    Sheets API → bật thêm **Google Drive API**
-2. Tạo 1 thư mục trên Google Drive của bạn (thủ công) → **Share** → thêm email service account
-   (dạng `xxx@xxx.iam.gserviceaccount.com`, xem trong `service-account.json`) với quyền
-   **Editor**
-3. Lấy Folder ID trong URL thư mục
+2. Vẫn trong Cloud Console → **APIs & Services → OAuth consent screen** → tạo consent screen loại
+   **External**, thêm chính email Google của bạn vào mục **Test users**
+3. **APIs & Services → Credentials → Create Credentials → OAuth client ID** → chọn loại
+   **Desktop app** → lấy **Client ID** và **Client Secret**, điền vào `.env`:
+   ```
+   GOOGLE_OAUTH_CLIENT_ID=...
+   GOOGLE_OAUTH_CLIENT_SECRET=...
+   ```
+4. Chạy `npm run drive:login`, làm theo hướng dẫn trên terminal (mở link, đăng nhập đúng tài
+   khoản Google muốn dùng, bấm "Cho phép" — nếu Google cảnh báo "unverified app" thì bấm
+   "Advanced" → "Go to ... (unsafe)", bình thường vì đây là app cá nhân do chính bạn tạo). Terminal
+   sẽ in ra dòng cần dán vào `.env`:
+   ```
+   GOOGLE_DRIVE_REFRESH_TOKEN=...
+   ```
+5. **Publish app** (khuyến nghị): OAuth consent screen → bấm **Publish App** để chuyển từ
+   "Testing" sang "In production" — nếu bỏ qua bước này, refresh token sẽ **hết hạn sau 7 ngày**
+   và cần chạy lại `npm run drive:login`, gây gián đoạn khi chạy tự động trên GitHub Actions
+6. Tạo 1 thư mục bất kỳ trên Google Drive của bạn, lấy Folder ID trong URL thư mục
    (`https://drive.google.com/drive/folders/XXXXX` → `XXXXX`), điền vào `.env`:
    ```
    GOOGLE_DRIVE_FOLDER_ID=XXXXX
@@ -263,7 +284,8 @@ quotetracker/
 ├── ROADMAP.md
 ├── README.md
 ├── scripts/
-│   └── list-gemini-models.js   # liệt kê model Gemini hiện khả dụng cho API key
+│   ├── list-gemini-models.js   # liệt kê model Gemini hiện khả dụng cho API key
+│   └── drive-oauth-login.js    # lấy Google Drive refresh token (chạy 1 lần, xem mục Drive ở trên)
 └── src/
     ├── index.js
     ├── sheets.js

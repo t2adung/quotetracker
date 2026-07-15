@@ -12,8 +12,8 @@ if (missing.length > 0) {
 }
 
 function extractSheetId(value) {
-  // Cho phép dán nguyên link Google Sheet
-  // (https://docs.google.com/spreadsheets/d/XXXXX/edit) hoặc chỉ dán riêng phần ID
+  // Accept either the full Google Sheet URL
+  // (https://docs.google.com/spreadsheets/d/XXXXX/edit) or just the ID by itself
   const match = value.match(/\/d\/([a-zA-Z0-9_-]+)/);
   return match ? match[1] : value;
 }
@@ -25,7 +25,14 @@ module.exports = {
   SHEET_TAB_VIDEOS: process.env.SHEET_TAB_VIDEOS || 'Nguồn Video',
   SHEET_TAB_QUOTES: process.env.SHEET_TAB_QUOTES || 'Quotes',
   SHEET_TAB_SCRIPTS: process.env.SHEET_TAB_SCRIPTS || 'Scripts',
-  // Không bắt buộc phải có ngay từ đầu — chỉ cần khi dùng cờ --upload-drive, tự validate lúc đó
-  // (xem src/drive.js), không chặn các lệnh khác không liên quan tới Drive.
+  // Not required upfront — only needed when using --upload-drive, validated lazily then
+  // (see src/drive.js), so it doesn't block other commands unrelated to Drive.
   GOOGLE_DRIVE_FOLDER_ID: process.env.GOOGLE_DRIVE_FOLDER_ID || '',
+  // Service accounts have no storage quota of their own, so they can't create new files in a
+  // personal Drive — Drive uploads must use OAuth with your own Google account instead of the
+  // service account (see README, "Upload video output lên Google Drive"). These 3 values come
+  // from running "node scripts/drive-oauth-login.js" once.
+  GOOGLE_OAUTH_CLIENT_ID: process.env.GOOGLE_OAUTH_CLIENT_ID || '',
+  GOOGLE_OAUTH_CLIENT_SECRET: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
+  GOOGLE_DRIVE_REFRESH_TOKEN: process.env.GOOGLE_DRIVE_REFRESH_TOKEN || '',
 };

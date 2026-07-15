@@ -122,11 +122,20 @@ Sheet tự cập nhật đúng trạng thái.
 
 ## Milestone 5c — Upload video output lên Google Drive + ghi link vào Sheet
 
-Mục tiêu: sau khi render MP4 xong, upload thẳng lên 1 thư mục Google Drive cố định (dùng chung
-service account đã có, không cần OAuth tương tác) rồi ghi link vào cột `Link video output
-(Canva)` (cột H, tab `Quotes`) — cột này không còn dùng cho Canva nữa, tái dùng luôn thay vì
-thêm cột mới. Cần thiết trước khi làm Milestone 6, vì runner GitHub Actions là máy tạm, file
-trong `output/` sẽ mất sau khi job chạy xong nếu không upload đi nơi khác.
+Mục tiêu: sau khi render MP4 xong, upload thẳng lên 1 thư mục Google Drive cố định rồi ghi link
+vào cột `Link video output (Canva)` (cột H, tab `Quotes`) — cột này không còn dùng cho Canva
+nữa, tái dùng luôn thay vì thêm cột mới. Cần thiết trước khi làm Milestone 6, vì runner GitHub
+Actions là máy tạm, file trong `output/` sẽ mất sau khi job chạy xong nếu không upload đi nơi
+khác.
+
+> **Đính chính sau khi test thật**: kế hoạch ban đầu định dùng chung service account (đã dùng cho
+> Sheets) để upload Drive luôn, không cần OAuth tương tác — nhưng khi chạy thật bị lỗi
+> `Service Accounts do not have storage quota`. Service Account không có dung lượng lưu trữ
+> riêng nên không tự tạo file mới được trong Drive cá nhân (Gmail thường, không phải Google
+> Workspace/Shared Drive), dù đã share thư mục với quyền Editor. Đã đổi sang xác thực **OAuth
+> bằng chính tài khoản Google của người dùng** riêng cho phần Drive (Sheets vẫn dùng service
+> account như cũ) — xem `scripts/drive-oauth-login.js` và README mục "Upload video output lên
+> Google Drive".
 
 - [ ] Bật **Google Drive API** cho cùng Google Cloud project đang dùng cho Sheets API
 - [ ] Tạo 1 thư mục trên Google Drive (thủ công), Share thư mục đó cho email service account
