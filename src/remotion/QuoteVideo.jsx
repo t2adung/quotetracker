@@ -33,7 +33,7 @@ function QuoteSlide({ quote, imagePath, isTitle, logo }) {
 
       {/* Quote nằm ở phía trên khung hình (không phải giữa trang), căn giữa theo chiều ngang */}
       <AbsoluteFill
-        style={{ justifyContent: 'flex-start', alignItems: 'center', paddingTop: isTitle ? 140 : 165 }}
+        style={{ justifyContent: 'flex-start', alignItems: 'center', paddingTop: isTitle ? 170 : 195 }}
       >
         <div
           style={{
@@ -41,10 +41,8 @@ function QuoteSlide({ quote, imagePath, isTitle, logo }) {
             maxWidth: 920,
             padding: isTitle ? '38px 46px' : '28px 38px',
             borderRadius: 32,
-            // Background mờ (blur) riêng sau chữ, tách biệt với overlay tối toàn khung ở trên
+            // Nền đen mờ (không dùng backdrop-blur) riêng sau chữ, để đọc rõ mà không làm mờ ảnh nền
             backgroundColor: 'rgba(0, 0, 0, 0.42)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
           }}
         >
           <p
@@ -73,8 +71,6 @@ function QuoteSlide({ quote, imagePath, isTitle, logo }) {
               padding: '14px 32px',
               borderRadius: 999,
               backgroundColor: 'rgba(0, 0, 0, 0.45)',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
             }}
           >
             <p
