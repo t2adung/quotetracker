@@ -62,6 +62,37 @@ Sheet thấy đúng dữ liệu ở cả 2 tab.
 **Nghiệm thu**: chạy với danh sách 3-5 video, kể cả khi 1 video cố tình để link sai, script vẫn
 chạy hết và báo cáo rõ video nào lỗi.
 
+## Milestone 5b — Dựng video bằng Remotion (thay thế Canva Bulk Create)
+
+> **Đổi hướng so với kế hoạch ban đầu**: milestone này ban đầu dự định dùng Canva Bulk Create
+> (thao tác tay, kết nối trực tiếp Sheet). Sau khi thử nghiệm, đổi sang **Remotion**
+> (Node.js/React, render bằng code) vì: Remotion miễn phí ở quy mô cá nhân trong khi Canva cần
+> gói Pro trả phí; Canva yêu cầu nhúng ảnh thật vào ô Sheet mới nhận diện được là ảnh, gây lỗi
+> liên tục khi tự động hoá; Remotion render 100% tự động bằng script, khớp thẳng vào kế hoạch
+> tự động hoá GitHub Actions ở Milestone 6. Mọi nhắc tới "Canva Bulk Create" ở các milestone
+> trước (và ở `PROJECT_BRIEF.md`) coi như không còn áp dụng cho bước dựng video.
+
+Mục tiêu: đọc dữ liệu quote (quote, context, đường dẫn ảnh nền) từ tab `Quotes` → render ra file
+MP4 riêng cho từng quote bằng Remotion, không qua Canva.
+
+- [ ] `src/remotion/QuoteVideo.jsx`: composition nhận props `quote`, `context`, `imagePath`.
+      Layout: ảnh nền phủ full khung 1080x1920, overlay đen mờ (~35%) để chữ luôn đọc được,
+      text quote lớn ở giữa (fade-in nhẹ), text context nhỏ hơn phía dưới
+- [ ] Đăng ký composition trong Remotion Root, thời lượng mỗi video ~6-8 giây, fps 30
+- [ ] `src/render-quotes.js`: đọc quote có Trạng thái sử dụng = "Chưa dùng" từ Sheet (tái dùng
+      hàm ở `sheets.js`), với mỗi quote gọi `renderMedia()` từ `@remotion/renderer`, xuất MP4 vào
+      `output/`, đặt tên theo STT quote
+- [ ] Lỗi ở 1 quote (ví dụ ảnh nền không tồn tại) → log lỗi, tiếp tục quote kế tiếp, không dừng
+      cả vòng lặp
+- [ ] Sau khi render xong, gọi hàm cập nhật Sheet có sẵn để đổi Trạng thái sử dụng thành
+      "Đã dùng" cho các quote vừa render
+- [ ] Thêm script npm `render:quotes`, cập nhật `README.md` thay hướng dẫn Canva bằng
+      `npm run render:quotes`
+
+**Nghiệm thu**: chạy `npm run render:quotes` với ít nhất 2-3 quote thật đã có ảnh nền → ra đúng
+số file MP4 trong `output/`, mở lên đúng nội dung quote + ảnh nền + overlay đọc rõ chữ → Sheet tự
+cập nhật đúng trạng thái.
+
 ## Milestone 6 — Tự động hoá bằng GitHub Actions (chỉ làm sau khi Milestone 1-5 đã chạy ổn định local)
 Mục tiêu: script tự chạy theo lịch, không cần bật máy tay mỗi lần. Dùng GitHub Actions vì repo
 đang Public → chạy hoàn toàn miễn phí, không cần VPS.
@@ -90,5 +121,5 @@ mà không hiểu rõ cơ chế — mặc định GitHub đã chặn Secrets cho
 ---
 
 **Không làm ở roadmap này** (để sau, không đưa cho Claude Code làm luôn kẻo lan man):
-tích hợp Canva API, deploy VPS riêng (GitHub Actions đã thay thế nhu cầu này ở quy mô hiện tại),
-dashboard theo dõi riêng.
+~~tích hợp Canva API~~ (không còn áp dụng — đã đổi sang Remotion, xem Milestone 5b), deploy VPS
+riêng (GitHub Actions đã thay thế nhu cầu này ở quy mô hiện tại), dashboard theo dõi riêng.
