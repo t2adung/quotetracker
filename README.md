@@ -54,6 +54,7 @@ node src/index.js --gen-images            # bật sinh ảnh nền cho từng qu
 node src/index.js --gen-images --image-scope=video   # chỉ sinh 1 ảnh dùng chung cho cả video
 node src/index.js --gen-images --image-topic=quote   # chọn style ảnh trong src/image-prompts/
 node src/index.js --resume-images         # chỉ sinh bù ảnh còn thiếu, không trích quote lại
+node src/index.js --gen-images --upload-drive         # kèm upload từng ảnh nền lên Google Drive
 ```
 
 - `--topic=<tên>`: chọn file prompt tương ứng trong `src/prompts/` (xem mục "Thư viện prompt
@@ -75,6 +76,11 @@ node src/index.js --resume-images         # chỉ sinh bù ảnh còn thiếu, k
   cảnh/tính tuần tự (hoặc chỉ 1 ảnh nếu dùng kèm `--image-scope=video`) — **không gọi lại Gemini
   để trích quote**, nên không tốn thêm token cho phần đã trích xong. Bỏ qua `--topic` khi dùng
   cờ này.
+- `--upload-drive`: đi kèm `--gen-images` hoặc `--resume-images` — mỗi ảnh nền sinh xong sẽ được
+  upload luôn lên thư mục Google Drive đã cấu hình (`GOOGLE_DRIVE_FOLDER_ID`, xem mục "Upload
+  video output lên Google Drive" bên dưới — dùng chung 1 thư mục cho cả ảnh lẫn video, tên file
+  đã phân biệt rõ). Lỗi upload 1 ảnh chỉ log lại, không chặn các ảnh/quote còn lại. Cần setup
+  Drive trước (xem mục dưới) trước khi dùng cờ này.
 
 ## Xử lý lỗi thường gặp
 
@@ -225,6 +231,14 @@ Google đó. Nếu 1 video upload lỗi (mất mạng, hết quota...) → log l
 link), vẫn tiếp tục các video khác, Trạng thái sử dụng của quote vẫn được cập nhật bình thường dù
 upload lỗi.
 
+**Ảnh nền cũng upload được lên cùng thư mục này** — dùng `--upload-drive` kèm `--gen-images`
+(xem mục "Tuỳ chọn dòng lệnh" ở trên). Khi `npm run render:quotes` không tìm thấy ảnh nền cục bộ
+trong `output/images/` (ví dụ chạy trên máy/job khác với lúc sinh ảnh), script sẽ **tự tìm và
+tải ảnh đó về từ Drive theo đúng tên file** trước khi bỏ qua quote — chỉ thử khi đã cấu hình
+`GOOGLE_DRIVE_FOLDER_ID`, không cần thêm bước thủ công nào. Nhờ vậy có thể chạy `--gen-images
+--upload-drive` và `render:quotes` ở 2 lần riêng biệt (kể cả trên 2 job GitHub Actions khác nhau)
+mà không cần sinh lại ảnh.
+
 ## Chạy tự động (GitHub Actions)
 
 Sau khi đã test ổn định ở local (xem Milestone 6 trong `ROADMAP.md`), script có thể chạy tự
@@ -250,7 +264,7 @@ quotetracker/
     ├── gemini.js
     ├── image-gen.js            # sinh ảnh nền cho quote (đang tắt, xem mục ở trên)
     ├── render-quotes.js        # dựng video MP4 bằng Remotion, xem mục "Dựng video bằng Remotion"
-    ├── drive.js                # upload video lên Google Drive (đang tắt, xem mục ở trên)
+    ├── drive.js                # upload/tải video + ảnh nền qua Google Drive (đang tắt, xem mục ở trên)
     ├── config.js
     ├── remotion/                # composition Remotion + Root đăng ký composition
     │   ├── index.jsx

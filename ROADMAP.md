@@ -153,6 +153,31 @@ trong `output/` sẽ mất sau khi job chạy xong nếu không upload đi nơi 
 nền → video MP4 xuất hiện đúng trong thư mục Drive đã cấu hình → cột `Link video output` ở tab
 `Quotes` được điền đúng link cho các quote thuộc video đó → mở link, xem/tải được video.
 
+### Mở rộng: ảnh nền cũng lên Drive, Remotion tự tải lại khi thiếu cục bộ
+
+Lý do: nếu bước sinh ảnh (`--gen-images`) và bước dựng video (`render:quotes`) chạy tách rời
+nhau (ví dụ 2 lần `workflow_dispatch` riêng trên GitHub Actions, cách nhau vài ngày), ảnh trong
+`output/images/` của lần chạy trước đã mất theo runner — cần lấy lại từ Drive thay vì bắt buộc
+phải chạy `--gen-images` lại từ đầu (tốn thêm tiền Gemini Flash Image).
+
+- [ ] `src/drive.js`: đổi `uploadVideoToDrive` thành hàm dùng chung `uploadFileToDrive(filePath,
+      fileName, mimeType)`, thêm `uploadImageToDrive` (mimeType `image/png`) — ảnh và video dùng
+      chung 1 `GOOGLE_DRIVE_FOLDER_ID`, không cần thư mục/biến môi trường riêng
+- [ ] `src/drive.js`: thêm `findFileIdByName` + `downloadImageIfExists(fileName, destPath)` — tìm
+      file theo đúng tên trong `GOOGLE_DRIVE_FOLDER_ID` (không cần lưu thêm cột ID nào trên Sheet,
+      chỉ cần tên file trùng với `image_filename` đã có sẵn ở cột J)
+- [ ] `src/index.js`: thêm cờ `--upload-drive` (dùng chung với `render-quotes.js`) — khi đi kèm
+      `--gen-images` hoặc `--resume-images`, mỗi ảnh nền sinh xong sẽ được upload lên Drive luôn.
+      Lỗi upload 1 ảnh → chỉ log lại, không chặn các ảnh/quote còn lại
+- [ ] `src/render-quotes.js`: trước khi bỏ qua 1 quote vì thiếu ảnh nền cục bộ, thử tìm + tải ảnh
+      đó từ Drive về `output/images/` trước (chỉ thử khi đã cấu hình `GOOGLE_DRIVE_FOLDER_ID`,
+      không báo lỗi gây nhiễu cho người chỉ dùng ảnh cục bộ). Vẫn giữ nguyên hành vi cũ: không tìm
+      thấy (cả cục bộ lẫn Drive) → bỏ qua đúng quote đó, không chặn cả video
+
+**Nghiệm thu**: xoá thử ảnh cục bộ trong `output/images/` của 1 quote đã từng sinh + upload Drive
+trước đó, chạy lại `npm run render:quotes` → script tự tải ảnh đó về từ Drive rồi render bình
+thường, không cần chạy lại `--gen-images`.
+
 ## Milestone 6 — Tự động hoá bằng GitHub Actions (chỉ làm sau khi Milestone 1-5 đã chạy ổn định local)
 Mục tiêu: script tự chạy theo lịch, không cần bật máy tay mỗi lần. Dùng GitHub Actions vì repo
 đang Public → chạy hoàn toàn miễn phí, không cần VPS.

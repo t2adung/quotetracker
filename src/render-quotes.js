@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-require('./config');
+const config = require('./config');
 const { bundle } = require('@remotion/bundler');
 const { renderMedia, selectComposition } = require('@remotion/renderer');
 const {
@@ -9,7 +9,7 @@ const {
   updateQuoteOutputLink,
   STATUS_QUOTE_DA_DUNG,
 } = require('./sheets');
-const { uploadVideoToDrive } = require('./drive');
+const { uploadVideoToDrive, downloadImageIfExists } = require('./drive');
 
 const COMPOSITION_ID = 'VideoSequence';
 const ENTRY_POINT = path.join(__dirname, 'remotion', 'index.jsx');
@@ -50,18 +50,44 @@ function groupQuotesBySttVideo(quotes) {
   return map;
 }
 
-// Bỏ qua (không chặn cả video) những quote thiếu ảnh nền trên đĩa; chỉ ghép các quote còn lại
-// thành segments để render.
-function buildSegments(quotesOfVideo) {
+// Ảnh nền không có sẵn cục bộ (ví dụ chạy trên 1 job/máy khác với lúc sinh ảnh bằng
+// --gen-images --upload-drive) → thử tải về từ Google Drive trước khi bỏ qua hẳn quote đó. Chỉ
+// thử khi đã cấu hình GOOGLE_DRIVE_FOLDER_ID, tránh báo lỗi "thiếu biến môi trường" gây nhiễu cho
+// người chỉ dùng ảnh cục bộ, không dùng Drive.
+async function ensureImageAvailable(imageFilename) {
+  const imageAbsolutePath = path.join(IMAGES_DIR, imageFilename);
+  if (fs.existsSync(imageAbsolutePath)) return true;
+  if (!config.GOOGLE_DRIVE_FOLDER_ID) return false;
+
+  console.log(`    Không thấy ảnh nền cục bộ "${imageFilename}", thử tải từ Google Drive...`);
+  fs.mkdirSync(IMAGES_DIR, { recursive: true });
+  const found = await downloadImageIfExists(imageFilename, imageAbsolutePath);
+  if (found) {
+    console.log(`    ✔ Đã tải ảnh nền từ Drive: ${imageFilename}`);
+  }
+  return found;
+}
+
+// Bỏ qua (không chặn cả video) những quote thiếu ảnh nền (cả cục bộ lẫn trên Drive); chỉ ghép
+// các quote còn lại thành segments để render.
+async function buildSegments(quotesOfVideo) {
   const segments = [];
   const sttDaDung = [];
 
   for (const quote of quotesOfVideo) {
-    const imageAbsolutePath = path.join(IMAGES_DIR, quote.imageFilename);
-    if (!fs.existsSync(imageAbsolutePath)) {
+    let available;
+    try {
+      available = await ensureImageAvailable(quote.imageFilename);
+    } catch (err) {
+      console.error(`    ✘ Bỏ qua quote STT ${quote.stt}: lỗi khi tải ảnh nền từ Drive — ${err.message}`);
+      continue;
+    }
+
+    if (!available) {
       console.error(`    ✘ Bỏ qua quote STT ${quote.stt}: không tìm thấy ảnh nền "${quote.imageFilename}"`);
       continue;
     }
+
     segments.push({ quote: quote.quote, imagePath: `images/${quote.imageFilename}` });
     sttDaDung.push(quote.stt);
   }
@@ -124,7 +150,7 @@ async function main() {
 
   for (const [sttVideo, quotesOfVideo] of bySttVideo) {
     console.log(`\n▶ Đang render video cho STT Video nguồn ${sttVideo} (${quotesOfVideo.length} quote)`);
-    const { segments, sttDaDung } = buildSegments(quotesOfVideo);
+    const { segments, sttDaDung } = await buildSegments(quotesOfVideo);
 
     if (segments.length === 0) {
       console.error(`  ✘ Bỏ qua video STT ${sttVideo}: không có quote nào đủ ảnh nền để render.`);

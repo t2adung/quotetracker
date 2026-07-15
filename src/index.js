@@ -1,3 +1,4 @@
+const path = require('path');
 require('./config');
 const {
   getUnprocessedVideos,
@@ -11,7 +12,8 @@ const {
   appendScript,
 } = require('./sheets');
 const { extractQuotes } = require('./gemini');
-const { generateBackgroundImage, pickSceneAnchor } = require('./image-gen');
+const { generateBackgroundImage, pickSceneAnchor, OUTPUT_DIR: IMAGES_OUTPUT_DIR } = require('./image-gen');
+const { uploadImageToDrive } = require('./drive');
 const { buildScriptFromQuotes, validateScriptConsistency } = require('./script-builder');
 
 const STATUS_DA_TRICH_QUOTE = 'Đã trích quote';
@@ -24,6 +26,9 @@ const STATUS_DA_TRICH_QUOTE = 'Đã trích quote';
 //                            quota giữa chừng lúc sinh ảnh, để không tốn token trích quote lại
 //   --image-scope=quote|video  sinh 1 ảnh/quote (mặc định) hay chỉ 1 ảnh dùng chung cho cả video
 //   --image-topic=<tên chủ đề> chọn style ảnh trong src/image-prompts/ (mặc định "quote")
+//   --upload-drive           kèm --gen-images: upload luôn mỗi ảnh nền vừa sinh lên Google Drive
+//                            (thư mục GOOGLE_DRIVE_FOLDER_ID), để render-quotes.js tải lại được
+//                            kể cả khi chạy trên máy/job khác (mặc định TẮT)
 //   --build-script           bật ghép quote thành kịch bản sau khi trích quote (mặc định TẮT —
 //                            gọi thêm 2 lượt Gemini/video: ghép script + tự kiểm tra nhất quán)
 //   --script-topic=<tên chủ đề> chọn style ghép kịch bản trong src/script-prompts/ (mặc định
@@ -43,6 +48,7 @@ function parseArgs(argv) {
     buildScript: false,
     scriptTopic: 'quote',
     sttVideo: '',
+    uploadDrive: false,
   };
   for (const arg of argv) {
     if (arg === '--gen-images') {
@@ -51,6 +57,8 @@ function parseArgs(argv) {
       args.resumeImages = true;
     } else if (arg === '--build-script') {
       args.buildScript = true;
+    } else if (arg === '--upload-drive') {
+      args.uploadDrive = true;
     } else if (arg.startsWith('--topic=')) {
       args.topic = arg.slice('--topic='.length);
     } else if (arg.startsWith('--image-scope=')) {
@@ -71,8 +79,20 @@ function parseArgs(argv) {
 //   imageScope === 'quote' (mặc định): sinh 1 ảnh/quote, tuần tự — chọn 1 bối cảnh dùng chung,
 //     truyền ảnh liền trước làm ảnh tham chiếu cho ảnh kế tiếp, để cả chuỗi ảnh cùng chủ đề/bối
 //     cảnh nhưng tiến triển tuần tự, tạo cảm giác như đang xem 1 video chuyển động.
+// Upload 1 ảnh nền vừa sinh lên Google Drive — lỗi chỉ log lại (không throw), vì thiếu link Drive
+// không nên chặn cả bước sinh ảnh (ảnh vẫn dùng được cục bộ cho render-quotes.js chạy cùng máy).
+async function uploadImageIfRequested(uploadDrive, filename) {
+  if (!uploadDrive) return;
+  try {
+    await uploadImageToDrive(path.join(IMAGES_OUTPUT_DIR, filename), filename);
+    console.log(`  Đã upload ảnh nền "${filename}" lên Google Drive.`);
+  } catch (err) {
+    console.error(`  Lỗi khi upload ảnh nền "${filename}" lên Google Drive: ${err.message}`);
+  }
+}
+
 // Lỗi ở 1 quote/1 ảnh chỉ log lại, không chặn các quote còn lại.
-async function generateImagesForQuotes(quotes, imageScope, imageTopic) {
+async function generateImagesForQuotes(quotes, imageScope, imageTopic, uploadDrive) {
   if (quotes.length === 0) return;
 
   const sceneAnchor = pickSceneAnchor(imageTopic);
@@ -93,6 +113,7 @@ async function generateImagesForQuotes(quotes, imageScope, imageTopic) {
         await updateQuoteImageFilename(q.stt, filename);
       }
       console.log(`  Đã sinh 1 ảnh dùng chung cho cả video: ${filename}`);
+      await uploadImageIfRequested(uploadDrive, filename);
     } catch (err) {
       console.error(`  Lỗi khi sinh ảnh chung cho video: ${err.message}`);
     }
@@ -116,6 +137,7 @@ async function generateImagesForQuotes(quotes, imageScope, imageTopic) {
       await updateQuoteImageFilename(q.stt, filename);
       previousImageBytes = imageBytes;
       console.log(`  Đã sinh ảnh nền: ${filename}`);
+      await uploadImageIfRequested(uploadDrive, filename);
     } catch (err) {
       console.error(`  Lỗi khi sinh ảnh nền cho quote STT ${q.stt}: ${err.message}`);
     }
@@ -167,7 +189,7 @@ async function buildAndSaveScript(video, quotes, scriptTopic) {
 
 console.log('Config OK');
 
-async function runResumeImages(imageScope, imageTopic) {
+async function runResumeImages(imageScope, imageTopic, uploadDrive) {
   let missing;
   try {
     missing = await getQuotesMissingImages();
@@ -192,13 +214,13 @@ async function runResumeImages(imageScope, imageTopic) {
   for (const sttVideo of sttVideos) {
     const quotesOfVideo = bySttVideo[sttVideo];
     console.log(`\n▶ Sinh ảnh còn thiếu cho video STT ${sttVideo} (${quotesOfVideo.length} quote)`);
-    await generateImagesForQuotes(quotesOfVideo, imageScope, imageTopic);
+    await generateImagesForQuotes(quotesOfVideo, imageScope, imageTopic, uploadDrive);
   }
 
   console.log('\nHoàn tất sinh ảnh còn thiếu.');
 }
 
-async function runExtractQuotes(topic, genImages, imageScope, imageTopic, buildScript, scriptTopic) {
+async function runExtractQuotes(topic, genImages, imageScope, imageTopic, buildScript, scriptTopic, uploadDrive) {
   let videos;
   let sttVideosWithQuotes;
   try {
@@ -233,7 +255,7 @@ async function runExtractQuotes(topic, genImages, imageScope, imageTopic, buildS
       console.log('  Đã ghi quote vào tab Quotes.');
 
       if (genImages) {
-        await generateImagesForQuotes(createdQuotes, imageScope, imageTopic);
+        await generateImagesForQuotes(createdQuotes, imageScope, imageTopic, uploadDrive);
       }
 
       if (buildScript) {
@@ -261,7 +283,7 @@ async function runExtractQuotes(topic, genImages, imageScope, imageTopic, buildS
 // Chế độ --stt-video: chỉ xử lý đúng 1 video theo STT, bất kể Trạng thái xử lý. Nếu video đã có
 // quote sẵn trong tab Quotes thì tái dùng, không gọi lại Gemini trích quote — tiện để test riêng
 // bước ghép script với 1 video đã có quote sẵn (đúng kịch bản nghiệm thu Milestone 4b).
-async function runForSingleVideo(sttVideo, topic, genImages, imageScope, imageTopic, buildScript, scriptTopic) {
+async function runForSingleVideo(sttVideo, topic, genImages, imageScope, imageTopic, buildScript, scriptTopic, uploadDrive) {
   let video;
   try {
     video = await getVideoByStt(sttVideo);
@@ -296,7 +318,7 @@ async function runForSingleVideo(sttVideo, topic, genImages, imageScope, imageTo
     }
 
     if (genImages) {
-      await generateImagesForQuotes(createdQuotes, imageScope, imageTopic);
+      await generateImagesForQuotes(createdQuotes, imageScope, imageTopic, uploadDrive);
     }
 
     if (buildScript) {
@@ -315,12 +337,12 @@ async function runForSingleVideo(sttVideo, topic, genImages, imageScope, imageTo
 }
 
 async function main() {
-  const { topic, genImages, resumeImages, imageScope, imageTopic, buildScript, scriptTopic, sttVideo } =
+  const { topic, genImages, resumeImages, imageScope, imageTopic, buildScript, scriptTopic, sttVideo, uploadDrive } =
     parseArgs(process.argv.slice(2));
 
   if (resumeImages) {
     console.log('Chế độ --resume-images: chỉ sinh ảnh còn thiếu, không gọi lại Gemini trích quote.');
-    await runResumeImages(imageScope, imageTopic);
+    await runResumeImages(imageScope, imageTopic, uploadDrive);
     return;
   }
 
@@ -328,6 +350,9 @@ async function main() {
     console.log(
       `Đã bật sinh ảnh nền (--gen-images, image-scope=${imageScope}, image-topic=${imageTopic}) — sẽ gọi thêm Gemini Flash Image.`
     );
+    if (uploadDrive) {
+      console.log('Đã bật --upload-drive: mỗi ảnh nền sinh xong sẽ được upload lên Google Drive.');
+    }
   }
 
   if (buildScript) {
@@ -336,11 +361,11 @@ async function main() {
 
   if (sttVideo) {
     console.log(`Chế độ --stt-video=${sttVideo}: chỉ xử lý đúng video này.`);
-    await runForSingleVideo(sttVideo, topic, genImages, imageScope, imageTopic, buildScript, scriptTopic);
+    await runForSingleVideo(sttVideo, topic, genImages, imageScope, imageTopic, buildScript, scriptTopic, uploadDrive);
     return;
   }
 
-  await runExtractQuotes(topic, genImages, imageScope, imageTopic, buildScript, scriptTopic);
+  await runExtractQuotes(topic, genImages, imageScope, imageTopic, buildScript, scriptTopic, uploadDrive);
 }
 
 main();
