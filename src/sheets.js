@@ -11,6 +11,7 @@ const STATUS_SCRIPT_DA_DUNG = 'Đã dùng';
 const VIDEOS_RANGE = `${config.SHEET_TAB_VIDEOS}!A4:I`;
 const VIDEOS_STT_RANGE = `${config.SHEET_TAB_VIDEOS}!A4:A`;
 const QUOTES_STT_RANGE = `${config.SHEET_TAB_QUOTES}!A4:A`;
+const QUOTES_VIDEO_STT_RANGE = `${config.SHEET_TAB_QUOTES}!A4:B`;
 const QUOTES_APPEND_RANGE = `${config.SHEET_TAB_QUOTES}!A4:I`;
 const QUOTES_FULL_RANGE = `${config.SHEET_TAB_QUOTES}!A4:J`;
 const VIDEOS_FIRST_DATA_ROW = 4;
@@ -61,6 +62,27 @@ async function getUnprocessedVideos() {
   } catch (err) {
     throw new Error(
       `Lỗi khi đọc dữ liệu từ tab "${config.SHEET_TAB_VIDEOS}" trong Google Sheet: ${err.message}`
+    );
+  }
+}
+
+// Trả về 1 Set các "STT Video nguồn" đã có ít nhất 1 quote trong tab Quotes — dùng để bỏ qua
+// video đã có quote rồi (phòng trường hợp Trạng thái xử lý ở tab Nguồn Video chưa kịp cập nhật
+// đúng do lần chạy trước bị lỗi giữa chừng), tránh ghi trùng quote cho cùng 1 video.
+async function getSttVideosWithQuotes() {
+  try {
+    const sheets = await getSheetsClient();
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: config.SHEET_ID,
+      range: QUOTES_VIDEO_STT_RANGE,
+    });
+
+    const rows = res.data.values || [];
+
+    return new Set(rows.filter((row) => row[0]).map((row) => String(row[1])));
+  } catch (err) {
+    throw new Error(
+      `Lỗi khi đọc danh sách video đã có quote từ tab "${config.SHEET_TAB_QUOTES}": ${err.message}`
     );
   }
 }
@@ -345,6 +367,7 @@ async function updateScriptStatus(sttScript, newStatus) {
 
 module.exports = {
   getUnprocessedVideos,
+  getSttVideosWithQuotes,
   appendQuotes,
   updateVideoStatus,
   updateQuoteImageFilename,

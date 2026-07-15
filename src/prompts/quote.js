@@ -22,6 +22,15 @@ Yêu cầu bắt buộc cho câu hook:
 Từ quote vị trí số 2 trở đi mới là trích nguyên văn thật từ nội dung video, độ dài như bình
 thường, không bị giới hạn ngắn gọn như câu hook.
 
+Yêu cầu bắt buộc cho các quote từ vị trí số 2 trở đi:
+- Chỉ chọn những câu nói QUAN TRỌNG, mang thông điệp/ý nghĩa rõ ràng — bỏ qua câu nói đệm, câu dẫn
+  dắt không đáng chú ý, câu lặp ý không thêm giá trị
+- Sắp xếp đúng theo TRÌNH TỰ xuất hiện trong video (timestamp tăng dần từ đầu đến cuối, không đảo
+  lộn thứ tự các quote đã chọn)
+- Ưu tiên chọn các câu có TÍNH LIÊN KẾT với nhau — cùng nằm trong 1 mạch ý/chủ đề xuyên suốt của
+  video, để sau này dễ ghép lại thành 1 kịch bản mạch lạc; tránh chọn các câu rời rạc, mỗi câu 1
+  chủ đề không liên quan đến nhau
+
 Với mỗi quote, trả về:
 - quote: nguyên văn câu nói (tiếng Việt, giữ đúng lời) — riêng quote đầu tiên là câu hook tự viết
   như mô tả ở trên
