@@ -148,6 +148,18 @@ muốn dùng:
 
 `output/` không được commit vào Git (đã thêm vào `.gitignore`).
 
+## Chạy nối tiếp trích quote + dựng video (1 lệnh)
+
+```bash
+npm run run:all
+npm run run:all -- --gen-images --build-script --logo=song.canbang
+```
+
+`src/run-all.js` chạy nối tiếp `node src/index.js` rồi `node src/render-quotes.js` (2 process
+con riêng, không gộp code) — tiện khi muốn làm hết 1 lần thay vì gõ 2 lệnh. Mọi cờ dòng lệnh được
+chuyển tiếp cho cả 2 bước, mỗi bước tự bỏ qua cờ không liên quan tới mình. Nếu bước trích quote
+lỗi (thoát mã khác 0), bước dựng video sẽ **không** chạy tiếp.
+
 ## Dựng video bằng Remotion
 
 Sau khi quote đã có ảnh nền (cột `image_filename` ở tab `Quotes` không trống — xem mục trên),
@@ -157,7 +169,7 @@ tác tay qua Canva Bulk Create ở kế hoạch ban đầu (xem Milestone 5b ở
 
 ```bash
 npm run render:quotes
-npm run render:quotes -- --logo=song.canbang   # kèm badge "@song.canbang" trong video
+npm run render:quotes -- --logo=song.canbang   # kèm badge "@song.canbang sưu tầm" trong video
 ```
 
 Script (`src/render-quotes.js`) sẽ:
@@ -169,8 +181,8 @@ Script (`src/render-quotes.js`) sẽ:
    **phía trên khung hình** (không phải giữa trang), trong khối có background mờ (blur) + chữ có
    viền đen (text-stroke) để luôn nổi rõ trên mọi ảnh nền, fade-in nhẹ. Cột "Bối cảnh/ý nghĩa"
    không hiển thị trong video — chỉ dùng nội bộ lúc trích quote
-3. Nếu bật cờ `--logo=<tên>` → hiện badge `@<tên>` ở dưới khung trong suốt video (mặc định
-   không hiện gì nếu không truyền cờ)
+3. Nếu bật cờ `--logo=<tên>` → hiện badge `@<tên> sưu tầm` ở dưới khung trong suốt video (mặc
+   định không hiện gì nếu không truyền cờ)
 4. Nếu 1 quote lỗi (ví dụ ảnh nền không tồn tại trong `output/images/`) → bỏ qua đúng quote đó,
    vẫn ghép các quote còn lại của cùng video; nếu cả video không còn quote nào đủ ảnh → log lỗi,
    bỏ qua cả video, tiếp tục video kế tiếp, không dừng cả vòng lặp

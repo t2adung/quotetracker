@@ -1,13 +1,18 @@
 require('./config');
 const {
   getUnprocessedVideos,
+  getVideoByStt,
+  getQuotesByVideoStt,
+  getSttVideosWithQuotes,
   appendQuotes,
   updateVideoStatus,
   updateQuoteImageFilename,
   getQuotesMissingImages,
+  appendScript,
 } = require('./sheets');
 const { extractQuotes } = require('./gemini');
 const { generateBackgroundImage, pickSceneAnchor } = require('./image-gen');
+const { buildScriptFromQuotes, validateScriptConsistency } = require('./script-builder');
 
 const STATUS_DA_TRICH_QUOTE = 'Đã trích quote';
 
@@ -19,6 +24,15 @@ const STATUS_DA_TRICH_QUOTE = 'Đã trích quote';
 //                            quota giữa chừng lúc sinh ảnh, để không tốn token trích quote lại
 //   --image-scope=quote|video  sinh 1 ảnh/quote (mặc định) hay chỉ 1 ảnh dùng chung cho cả video
 //   --image-topic=<tên chủ đề> chọn style ảnh trong src/image-prompts/ (mặc định "quote")
+//   --build-script           bật ghép quote thành kịch bản sau khi trích quote (mặc định TẮT —
+//                            gọi thêm 2 lượt Gemini/video: ghép script + tự kiểm tra nhất quán)
+//   --script-topic=<tên chủ đề> chọn style ghép kịch bản trong src/script-prompts/ (mặc định
+//                            "quote"), chỉ có tác dụng khi bật --build-script
+//   --stt-video=<STT>        chỉ xử lý ĐÚNG 1 video theo "STT Video nguồn" này, bất kể Trạng
+//                            thái xử lý (kể cả video đã xử lý xong rồi) — dùng để test/chạy lại
+//                            1 video cụ thể. Nếu video đã có quote sẵn trong tab Quotes thì TÁI
+//                            DÙNG quote đó (không gọi lại Gemini trích quote) — tiện để test riêng
+//                            bước ghép script (--build-script) với 1 video đã có quote sẵn
 function parseArgs(argv) {
   const args = {
     topic: 'quote',
@@ -26,18 +40,27 @@ function parseArgs(argv) {
     resumeImages: false,
     imageScope: 'quote',
     imageTopic: 'quote',
+    buildScript: false,
+    scriptTopic: 'quote',
+    sttVideo: '',
   };
   for (const arg of argv) {
     if (arg === '--gen-images') {
       args.genImages = true;
     } else if (arg === '--resume-images') {
       args.resumeImages = true;
+    } else if (arg === '--build-script') {
+      args.buildScript = true;
     } else if (arg.startsWith('--topic=')) {
       args.topic = arg.slice('--topic='.length);
     } else if (arg.startsWith('--image-scope=')) {
       args.imageScope = arg.slice('--image-scope='.length);
     } else if (arg.startsWith('--image-topic=')) {
       args.imageTopic = arg.slice('--image-topic='.length);
+    } else if (arg.startsWith('--script-topic=')) {
+      args.scriptTopic = arg.slice('--script-topic='.length);
+    } else if (arg.startsWith('--stt-video=')) {
+      args.sttVideo = arg.slice('--stt-video='.length);
     }
   }
   return args;
@@ -99,6 +122,49 @@ async function generateImagesForQuotes(quotes, imageScope, imageTopic) {
   }
 }
 
+// Ghép các quote vừa trích của 1 video thành 1 kịch bản (script), tự kiểm tra tính nhất quán,
+// rồi ghi vào tab Scripts nếu đạt. Không throw ra ngoài — lỗi ở bước này chỉ log lại, không
+// chặn việc cập nhật trạng thái video (quote đã ghi vào Sheet thành công là đủ để coi là xong).
+async function buildAndSaveScript(video, quotes, scriptTopic) {
+  console.log('  Đang ghép kịch bản từ các quote vừa trích...');
+
+  let script;
+  try {
+    script = await buildScriptFromQuotes(video.tieuDe, quotes, scriptTopic);
+  } catch (err) {
+    console.error(`  Lỗi khi ghép kịch bản: ${err.message}`);
+    return;
+  }
+
+  if (!script) {
+    console.log('  Không đủ quote phù hợp để ghép thành kịch bản mạch lạc — bỏ qua, không ghi script.');
+    return;
+  }
+
+  console.log('  Đang tự kiểm tra tính nhất quán của kịch bản...');
+  let consistency;
+  try {
+    consistency = await validateScriptConsistency(script);
+  } catch (err) {
+    console.error(`  Lỗi khi tự kiểm tra tính nhất quán kịch bản: ${err.message}`);
+    return;
+  }
+
+  if (!consistency.isConsistent) {
+    console.log(`  Kịch bản KHÔNG đạt kiểm tra tính nhất quán, bỏ qua không ghi vào Sheet. Lý do: ${consistency.reason}`);
+    return;
+  }
+
+  const quoteIds = [...new Set(script.segments.filter((s) => s.quoteId != null).map((s) => s.quoteId))];
+
+  try {
+    await appendScript(video.stt, quoteIds, script.fullScript, script.segments);
+    console.log('  Đã ghi kịch bản vào tab Scripts.');
+  } catch (err) {
+    console.error(`  Lỗi khi ghi kịch bản vào Sheet: ${err.message}`);
+  }
+}
+
 console.log('Config OK');
 
 async function runResumeImages(imageScope, imageTopic) {
@@ -132,10 +198,12 @@ async function runResumeImages(imageScope, imageTopic) {
   console.log('\nHoàn tất sinh ảnh còn thiếu.');
 }
 
-async function runExtractQuotes(topic, genImages, imageScope, imageTopic) {
+async function runExtractQuotes(topic, genImages, imageScope, imageTopic, buildScript, scriptTopic) {
   let videos;
+  let sttVideosWithQuotes;
   try {
     videos = await getUnprocessedVideos();
+    sttVideosWithQuotes = await getSttVideosWithQuotes();
   } catch (err) {
     console.error(err.message);
     return;
@@ -144,9 +212,19 @@ async function runExtractQuotes(topic, genImages, imageScope, imageTopic) {
   console.log(`Tìm thấy ${videos.length} video chưa xử lý.`);
 
   const videoLoi = [];
+  const videoBoQua = [];
 
   for (const video of videos) {
     console.log(`\n▶ Đang xử lý video STT ${video.stt}: "${video.tieuDe}"`);
+
+    // Phòng trường hợp Trạng thái xử lý ở tab Nguồn Video chưa kịp cập nhật đúng (lần chạy trước
+    // lỗi giữa chừng sau khi đã ghi quote) — kiểm tra thêm tab Quotes, tránh ghi trùng quote.
+    if (sttVideosWithQuotes.has(String(video.stt))) {
+      console.log(`  Video STT ${video.stt} đã có quote trong tab Quotes — bỏ qua, không trích lại.`);
+      videoBoQua.push(video.stt);
+      continue;
+    }
+
     try {
       const quotes = await extractQuotes(video.link, video.tieuDe, topic);
       console.log(`  Trích được ${quotes.length} quote.`);
@@ -158,6 +236,10 @@ async function runExtractQuotes(topic, genImages, imageScope, imageTopic) {
         await generateImagesForQuotes(createdQuotes, imageScope, imageTopic);
       }
 
+      if (buildScript) {
+        await buildAndSaveScript(video, createdQuotes, scriptTopic);
+      }
+
       await updateVideoStatus(video.stt, STATUS_DA_TRICH_QUOTE);
       console.log(`  Đã cập nhật trạng thái "${STATUS_DA_TRICH_QUOTE}".`);
     } catch (err) {
@@ -166,14 +248,75 @@ async function runExtractQuotes(topic, genImages, imageScope, imageTopic) {
     }
   }
 
-  console.log(`\nHoàn tất. ${videos.length - videoLoi.length}/${videos.length} video xử lý thành công.`);
+  const daXuLy = videos.length - videoLoi.length - videoBoQua.length;
+  console.log(`\nHoàn tất. ${daXuLy}/${videos.length} video xử lý thành công.`);
+  if (videoBoQua.length > 0) {
+    console.log(`Video bị bỏ qua vì đã có quote sẵn (STT): ${videoBoQua.join(', ')}`);
+  }
   if (videoLoi.length > 0) {
     console.log(`Video bị lỗi (STT): ${videoLoi.join(', ')}`);
   }
 }
 
+// Chế độ --stt-video: chỉ xử lý đúng 1 video theo STT, bất kể Trạng thái xử lý. Nếu video đã có
+// quote sẵn trong tab Quotes thì tái dùng, không gọi lại Gemini trích quote — tiện để test riêng
+// bước ghép script với 1 video đã có quote sẵn (đúng kịch bản nghiệm thu Milestone 4b).
+async function runForSingleVideo(sttVideo, topic, genImages, imageScope, imageTopic, buildScript, scriptTopic) {
+  let video;
+  try {
+    video = await getVideoByStt(sttVideo);
+  } catch (err) {
+    console.error(err.message);
+    return;
+  }
+
+  if (!video) {
+    console.error(`Không tìm thấy video có STT = ${sttVideo} trong tab "Nguồn Video".`);
+    return;
+  }
+
+  console.log(`▶ Đang xử lý video STT ${video.stt}: "${video.tieuDe}" (chế độ --stt-video)`);
+
+  try {
+    let createdQuotes;
+    let daTrichQuoteMoi = false;
+
+    const existingQuotes = await getQuotesByVideoStt(video.stt);
+
+    if (existingQuotes.length > 0) {
+      console.log(`  Video đã có sẵn ${existingQuotes.length} quote trong tab Quotes — tái dùng, không trích lại.`);
+      createdQuotes = existingQuotes;
+    } else {
+      const quotes = await extractQuotes(video.link, video.tieuDe, topic);
+      console.log(`  Trích được ${quotes.length} quote.`);
+
+      createdQuotes = await appendQuotes(video.stt, quotes);
+      console.log('  Đã ghi quote vào tab Quotes.');
+      daTrichQuoteMoi = true;
+    }
+
+    if (genImages) {
+      await generateImagesForQuotes(createdQuotes, imageScope, imageTopic);
+    }
+
+    if (buildScript) {
+      await buildAndSaveScript(video, createdQuotes, scriptTopic);
+    }
+
+    if (daTrichQuoteMoi) {
+      await updateVideoStatus(video.stt, STATUS_DA_TRICH_QUOTE);
+      console.log(`  Đã cập nhật trạng thái "${STATUS_DA_TRICH_QUOTE}".`);
+    }
+
+    console.log(`\nHoàn tất xử lý video STT ${video.stt}.`);
+  } catch (err) {
+    console.error(`  Lỗi khi xử lý video STT ${video.stt}: ${err.message}`);
+  }
+}
+
 async function main() {
-  const { topic, genImages, resumeImages, imageScope, imageTopic } = parseArgs(process.argv.slice(2));
+  const { topic, genImages, resumeImages, imageScope, imageTopic, buildScript, scriptTopic, sttVideo } =
+    parseArgs(process.argv.slice(2));
 
   if (resumeImages) {
     console.log('Chế độ --resume-images: chỉ sinh ảnh còn thiếu, không gọi lại Gemini trích quote.');
@@ -187,7 +330,17 @@ async function main() {
     );
   }
 
-  await runExtractQuotes(topic, genImages, imageScope, imageTopic);
+  if (buildScript) {
+    console.log(`Đã bật ghép kịch bản (--build-script, script-topic=${scriptTopic}) — sẽ gọi thêm Gemini để ghép + tự kiểm tra script.`);
+  }
+
+  if (sttVideo) {
+    console.log(`Chế độ --stt-video=${sttVideo}: chỉ xử lý đúng video này.`);
+    await runForSingleVideo(sttVideo, topic, genImages, imageScope, imageTopic, buildScript, scriptTopic);
+    return;
+  }
+
+  await runExtractQuotes(topic, genImages, imageScope, imageTopic, buildScript, scriptTopic);
 }
 
 main();

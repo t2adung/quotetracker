@@ -28,10 +28,9 @@ function QuoteSlide({ quote, imagePath, isTitle, logo }) {
     <AbsoluteFill>
       <Img src={toImageSrc(imagePath)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
 
-      {/* Overlay đen mờ toàn khung để chữ luôn đọc được trên mọi ảnh nền */}
-      <AbsoluteFill style={{ backgroundColor: 'rgba(0, 0, 0, 0.35)' }} />
-
-      {/* Quote nằm ở phía trên khung hình (không phải giữa trang), căn giữa theo chiều ngang */}
+      {/* Quote nằm ở phía trên khung hình (không phải giữa trang), căn giữa theo chiều ngang.
+          KHÔNG phủ overlay đen toàn khung ở đây — ảnh nền phải giữ nguyên độ sáng/rõ nét, chữ
+          đã đủ đọc rõ nhờ nền đen mờ + viền đen riêng của khối chữ bên dưới. */}
       <AbsoluteFill
         style={{ justifyContent: 'flex-start', alignItems: 'center', paddingTop: isTitle ? 170 : 195 }}
       >
@@ -82,7 +81,7 @@ function QuoteSlide({ quote, imagePath, isTitle, logo }) {
                 fontFamily: 'sans-serif',
               }}
             >
-              @{logo}
+              @{logo} sưu tầm
             </p>
           </div>
         </AbsoluteFill>

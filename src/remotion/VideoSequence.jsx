@@ -1,11 +1,7 @@
 const React = require('react');
 const { AbsoluteFill, Series } = require('remotion');
 const { QuoteSlide } = require('./QuoteVideo');
-
-const FPS = 30;
-// Quote đầu tiên (title) của mỗi video được giữ trên khung lâu hơn 1 chút vì chữ to hơn, đọc lâu hơn.
-const TITLE_DURATION_IN_FRAMES = 5 * FPS;
-const QUOTE_DURATION_IN_FRAMES = 4 * FPS;
+const { FPS, TITLE_DURATION_IN_FRAMES, QUOTE_DURATION_IN_FRAMES } = require('../timing');
 
 function durationForIndex(index) {
   return index === 0 ? TITLE_DURATION_IN_FRAMES : QUOTE_DURATION_IN_FRAMES;

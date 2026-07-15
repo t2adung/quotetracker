@@ -2,9 +2,10 @@
 
 ## Mục tiêu
 Tự động hoá việc trích quote hay từ video YouTube (dùng Gemini API), ghi vào Google Sheet
-trung tâm, để sau đó dựng hàng loạt video ngắn (TikTok/YouTube Shorts) bằng Remotion (render
-video tự động bằng code — xem Milestone 5b ở `ROADMAP.md`; ~~Canva Bulk Create~~ không còn
-áp dụng cho bước dựng video).
+trung tâm, ghép nhiều quote cùng 1 video nguồn thành 1 kịch bản (script) liền mạch (xem
+Milestone 4b ở `ROADMAP.md`), rồi dựng thành video hoàn chỉnh (TikTok/YouTube Shorts) bằng
+Remotion (render video tự động bằng code — xem Milestone 5b ở `ROADMAP.md`; ~~Canva Bulk
+Create~~ không còn áp dụng cho bước dựng video).
 
 Đây là 1 script/worker độc lập, **không phải** web app, không cần UI. Chạy bằng lệnh CLI,
 local-first (chưa deploy VPS ở giai đoạn này).
@@ -31,9 +32,13 @@ local-first (chưa deploy VPS ở giai đoạn này).
    timestamp, hook_score)
 3. Ghi từng quote vào tab `Quotes`, tham chiếu đúng STT video nguồn
 4. Cập nhật lại Trạng thái xử lý ở tab `Nguồn Video` thành "Đã trích quote"
-5. Với các quote đã có ảnh nền (chưa dùng), gom theo "STT Video nguồn": render 1 video MP4/video
-   nguồn bằng Remotion (quote đầu tiên là title, xem Milestone 5b), cập nhật Trạng thái sử dụng
-   thành "Đã dùng" cho các quote đã đưa vào video
+5. Với các quote vừa trích của cùng 1 video nguồn: ghép thành 1 kịch bản (script) liền mạch —
+   có hook, vấn đề, insight, câu chốt, giữ nguyên văn quote gốc, nhất quán 1 giọng điệu — rồi
+   tự kiểm tra lại tính nhất quán trước khi ghi vào tab `Scripts` (xem Milestone 4b)
+6. Với các script đã ghép hợp lệ (và ảnh nền tương ứng cho từng quote được dùng trong script):
+   dựng 1 video MP4 hoàn chỉnh bằng Remotion theo đúng cấu trúc script (xem Milestone 5b), thay
+   vì dựng riêng từng quote thành từng video ngắn rời rạc, cập nhật Trạng thái sử dụng thành
+   "Đã dùng" cho các quote đã đưa vào video
 
 ## Tech stack
 - Node.js (phiên bản LTS hiện tại)

@@ -24,4 +24,5 @@ module.exports = {
   GOOGLE_SERVICE_ACCOUNT_PATH: process.env.GOOGLE_SERVICE_ACCOUNT_PATH,
   SHEET_TAB_VIDEOS: process.env.SHEET_TAB_VIDEOS || 'Nguồn Video',
   SHEET_TAB_QUOTES: process.env.SHEET_TAB_QUOTES || 'Quotes',
+  SHEET_TAB_SCRIPTS: process.env.SHEET_TAB_SCRIPTS || 'Scripts',
 };
