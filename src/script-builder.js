@@ -1,13 +1,15 @@
 const { GoogleGenAI } = require('@google/genai');
 const config = require('./config');
+const { getScriptPrompt } = require('./script-prompts');
 
 // Dùng chung alias model với gemini.js — xem lý do ở đó
 const MODEL = 'gemini-flash-latest';
 
-function buildPrompt(videoTitle, quotesArray) {
+function buildPrompt(videoTitle, quotesArray, topic) {
+  const { audienceDescription } = getScriptPrompt(topic);
   const quoteList = quotesArray.map((q) => `- id ${q.stt}: "${q.quote}"`).join('\n');
 
-  return `Bạn là biên tập viên kịch bản video ngắn (TikTok/Shorts), nhắm tới khán giả U40.
+  return `Bạn là biên tập viên kịch bản video ngắn (TikTok/Shorts), ${audienceDescription}.
 
 Tiêu đề video nguồn: "${videoTitle}"
 
@@ -83,12 +85,14 @@ function parseScriptResponse(text) {
 // Nhận tiêu đề video + danh sách quote của CÙNG 1 video nguồn (dạng { stt, quote }), gọi Gemini
 // để chọn ra 3-4 quote phù hợp và ghép thành 1 kịch bản liền mạch. Trả về null nếu Gemini xác
 // định không đủ quote phù hợp để ghép (không ép ghép gượng gạo).
-async function buildScriptFromQuotes(videoTitle, quotesArray) {
+// topic: chọn style/đối tượng khán giả trong src/script-prompts/ (mặc định "quote") — cùng cơ
+// chế với --topic (trích quote) và --image-topic (sinh ảnh nền) đã có.
+async function buildScriptFromQuotes(videoTitle, quotesArray, topic = 'quote') {
   if (!Array.isArray(quotesArray) || quotesArray.length === 0) {
     return null;
   }
 
-  const prompt = buildPrompt(videoTitle, quotesArray);
+  const prompt = buildPrompt(videoTitle, quotesArray, topic);
 
   let rawText;
   try {
