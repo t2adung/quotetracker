@@ -1,13 +1,22 @@
 const { GoogleGenAI } = require('@google/genai');
 const config = require('./config');
 const { getScriptPrompt } = require('./script-prompts');
+const { TITLE_DURATION_SECONDS, QUOTE_DURATION_SECONDS } = require('./timing');
 
 // Dùng chung alias model với gemini.js — xem lý do ở đó
 const MODEL = 'gemini-flash-latest';
 
+// Ước lượng tốc độ đọc phụ đề tiếng Việt trên màn hình, dùng để gợi ý độ dài tối đa cho câu nối
+// tự viết — để khi dựng thành video sau này (Milestone 5b), nhịp đọc mỗi đoạn khớp với đúng thời
+// lượng slide đã dùng khi dựng video 1-quote-1-slide bình thường (xem src/timing.js), không bị
+// dồn chữ hay đọc không kịp.
+const READING_WORDS_PER_SECOND = 3;
+
 function buildPrompt(videoTitle, quotesArray, topic) {
   const { audienceDescription } = getScriptPrompt(topic);
   const quoteList = quotesArray.map((q) => `- id ${q.stt}: "${q.quote}"`).join('\n');
+  const hookMaxWords = Math.round(TITLE_DURATION_SECONDS * READING_WORDS_PER_SECOND);
+  const otherMaxWords = Math.round(QUOTE_DURATION_SECONDS * READING_WORDS_PER_SECOND);
 
   return `Bạn là biên tập viên kịch bản video ngắn (TikTok/Shorts), ${audienceDescription}.
 
@@ -34,6 +43,14 @@ Yêu cầu bắt buộc:
 - Nếu không tìm đủ quote phù hợp để ghép thành 1 mạch logic rõ ràng (hook - vấn đề - insight -
   chốt), được phép dùng ÍT HƠN quote, hoặc trả về kết quả rỗng như hướng dẫn bên dưới — TUYỆT ĐỐI
   không ghép gượng ép cho đủ 4 phần
+
+QUAN TRỌNG về thời lượng: khi dựng thành video, mỗi đoạn (segment) sẽ được hiển thị trong đúng
+thời lượng slide như cách dựng video 1-quote-1-slide bình thường hiện tại — đoạn "hook" khoảng
+${TITLE_DURATION_SECONDS} giây, các đoạn "van_de"/"insight"/"chot" khoảng ${QUOTE_DURATION_SECONDS}
+giây mỗi đoạn. Với CÂU NỐI DO BẠN TỰ VIẾT (không áp dụng cho phần quote nguyên văn, vì quote giữ
+nguyên độ dài gốc): phải đủ ngắn để đọc thoải mái trong đúng khoảng thời gian đó — tối đa khoảng
+${hookMaxWords} từ cho đoạn hook, ${otherMaxWords} từ cho các đoạn còn lại. Không viết câu nối dài
+dòng làm chậm nhịp so với cách dựng video bình thường.
 
 CHỈ trả về một object JSON hợp lệ theo đúng định dạng sau, không thêm bất kỳ chữ giải thích,
 markdown hay text nào khác:
