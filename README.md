@@ -1,7 +1,8 @@
 # quotetracker
 
 Script trích quote hay từ video YouTube bằng Gemini API, ghi kết quả vào Google Sheet trung
-tâm, làm nguồn dữ liệu để dựng video ngắn hàng loạt (ví dụ qua Canva Bulk Create).
+tâm, làm nguồn dữ liệu để dựng video ngắn hàng loạt bằng Remotion (`npm run render:quotes`,
+xem mục "Dựng video bằng Remotion" bên dưới).
 
 Xem chi tiết bối cảnh và mục tiêu ở [`PROJECT_BRIEF.md`](./PROJECT_BRIEF.md), lộ trình triển
 khai từng bước ở [`ROADMAP.md`](./ROADMAP.md), quy ước code cho Claude Code ở
@@ -91,6 +92,10 @@ node src/index.js --resume-images         # chỉ sinh bù ảnh còn thiếu, k
 - **"This model models/xxx is no longer available"** → Google đã ngừng hỗ trợ model đang dùng.
   Chạy `node scripts/list-gemini-models.js` để lấy đúng danh sách model hiện còn khả dụng cho
   API key của bạn, rồi cập nhật hằng số `MODEL` trong `src/gemini.js`.
+- **`npm run render:quotes` không render được ảnh nền / báo lỗi tải Chrome** → lần đầu chạy,
+  Remotion cần tải về 1 bản Chrome headless riêng qua mạng, đảm bảo máy có kết nối internet bình
+  thường (không qua proxy chặn). Nếu báo "Không tìm thấy ảnh nền" cho 1 quote cụ thể → kiểm tra
+  file tương ứng có tồn tại trong `output/images/` không (phải chạy `--gen-images` trước).
 
 ## Thư viện prompt theo chủ đề
 
@@ -138,10 +143,35 @@ muốn dùng:
 1. Vào Google Sheet thật, thêm cột `image_filename` ở header hàng 3, cột J của tab `Quotes`
    (chưa có sẵn — sheet mẫu ban đầu chỉ có tới cột I)
 2. Chạy `node src/index.js --gen-images`
-3. Upload hàng loạt các file trong `output/images/` vào thư mục Uploads của Canva; Canva Bulk
-   Create sẽ tự khớp ảnh theo tên file trùng với giá trị ở cột `image_filename`
+3. Chạy tiếp `npm run render:quotes` (xem mục "Dựng video bằng Remotion" bên dưới) để dựng
+   video MP4 từ các quote đã có ảnh nền
 
 `output/` không được commit vào Git (đã thêm vào `.gitignore`).
+
+## Dựng video bằng Remotion
+
+Sau khi quote đã có ảnh nền (cột `image_filename` ở tab `Quotes` không trống — xem mục trên),
+dựng video ngắn (MP4, 1080x1920, ~7 giây/video) bằng [Remotion](https://www.remotion.dev), thay
+cho việc thao tác tay qua Canva Bulk Create ở kế hoạch ban đầu (xem Milestone 5b ở `ROADMAP.md`
+để biết lý do đổi hướng).
+
+```bash
+npm run render:quotes
+```
+
+Script (`src/render-quotes.js`) sẽ:
+1. Đọc tab `Quotes`, lọc các quote có Trạng thái sử dụng = "Chưa dùng" **và** đã có
+   `image_filename`
+2. Với mỗi quote, render 1 file MP4 vào `output/`, đặt tên theo STT (ví dụ `output/quote_007.mp4`)
+   — dùng composition `src/remotion/QuoteVideo.jsx`: ảnh nền phủ full khung, overlay đen mờ để
+   chữ luôn đọc được, quote lớn fade-in giữa khung, context nhỏ hơn phía dưới
+3. Nếu 1 quote lỗi (ví dụ ảnh nền không tồn tại trong `output/images/`) → log lỗi, tiếp tục
+   quote kế tiếp, không dừng cả vòng lặp
+4. Sau khi render xong, tự cập nhật Trạng thái sử dụng thành "Đã dùng" cho các quote **render
+   thành công** trên Google Sheet (quote lỗi vẫn giữ nguyên "Chưa dùng" để chạy lại lần sau)
+
+Lần chạy đầu tiên, Remotion sẽ tự tải về 1 bản Chrome headless riêng (khác Chrome cài sẵn trên
+máy) để render — cần có mạng, chỉ tải 1 lần.
 
 ## Chạy tự động (GitHub Actions)
 
@@ -167,7 +197,12 @@ quotetracker/
     ├── sheets.js
     ├── gemini.js
     ├── image-gen.js            # sinh ảnh nền cho quote (đang tắt, xem mục ở trên)
+    ├── render-quotes.js        # dựng video MP4 bằng Remotion, xem mục "Dựng video bằng Remotion"
     ├── config.js
+    ├── remotion/                # composition Remotion (QuoteVideo) + Root đăng ký composition
+    │   ├── index.jsx
+    │   ├── Root.jsx
+    │   └── QuoteVideo.jsx
     └── prompts/                # thư viện prompt theo chủ đề
         ├── index.js
         └── quote.js
