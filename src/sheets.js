@@ -7,7 +7,7 @@ const STATUS_QUOTE_DA_DUNG = 'Đã dùng';
 const STATUS_SCRIPT_CHUA_DUNG = 'Chưa dùng';
 const STATUS_SCRIPT_DA_DUNG = 'Đã dùng';
 
-// Dữ liệu thật bắt đầu từ hàng 4 (hàng 1: banner hướng dẫn, hàng 3: header)
+// Actual data starts at row 4 (row 1: instructions banner, row 3: header)
 const VIDEOS_RANGE = `${config.SHEET_TAB_VIDEOS}!A4:I`;
 const VIDEOS_STT_RANGE = `${config.SHEET_TAB_VIDEOS}!A4:A`;
 const QUOTES_STT_RANGE = `${config.SHEET_TAB_QUOTES}!A4:A`;
@@ -16,23 +16,24 @@ const QUOTES_APPEND_RANGE = `${config.SHEET_TAB_QUOTES}!A4:I`;
 const QUOTES_FULL_RANGE = `${config.SHEET_TAB_QUOTES}!A4:J`;
 const VIDEOS_FIRST_DATA_ROW = 4;
 const QUOTES_FIRST_DATA_ROW = 4;
-// Cột J = "image_filename" (tên file ảnh nền, ví dụ quote_001.png) — cột mới, thêm thủ công
-// vào header hàng 3 của tab Quotes trên Google Sheet thật trước khi dùng updateQuoteImageFilename.
+// Column J = "image_filename" (background image file name, e.g. quote_001.png) — a new column,
+// added manually to row 3 (header) of the Quotes tab on the real Google Sheet before using
+// updateQuoteImageFilename.
 const QUOTES_IMAGE_FILENAME_COLUMN = 'J';
-// Cột G = "Trạng thái sử dụng"
+// Column G = "Trạng thái sử dụng" (usage status)
 const QUOTES_STATUS_COLUMN = 'G';
-// Cột H = "Link video output (Canva)" — không còn dùng cho Canva, tái dùng để lưu link Drive
-// của video Remotion đã render (xem uploadVideoToDrive ở drive.js).
+// Column H = "Link video output (Canva)" — no longer used for Canva, repurposed to store the
+// Drive link of the rendered Remotion video (see uploadVideoToDrive in drive.js).
 const QUOTES_OUTPUT_LINK_COLUMN = 'H';
 
-// Tab Scripts (mới) — cột: A STT Script, B STT Video nguồn, C Quote IDs đã dùng,
-// D Full Script, E Segments (JSON dạng text), F Trạng thái. Cần tự tạo tab này thủ công
-// trên Google Sheet thật trước khi dùng các hàm bên dưới.
+// Scripts tab (new) — columns: A Script STT, B Source video STT, C Quote IDs used,
+// D Full Script, E Segments (JSON as text), F Status. This tab must be created manually
+// on the real Google Sheet before using the functions below.
 const SCRIPTS_STT_RANGE = `${config.SHEET_TAB_SCRIPTS}!A4:A`;
 const SCRIPTS_FULL_RANGE = `${config.SHEET_TAB_SCRIPTS}!A4:F`;
 const SCRIPTS_APPEND_RANGE = `${config.SHEET_TAB_SCRIPTS}!A4:F`;
 const SCRIPTS_FIRST_DATA_ROW = 4;
-// Cột F = "Trạng thái"
+// Column F = "Trạng thái" (status)
 const SCRIPTS_STATUS_COLUMN = 'F';
 
 async function getSheetsClient() {
@@ -69,9 +70,9 @@ async function getUnprocessedVideos() {
   }
 }
 
-// Đọc 1 video theo đúng STT, BẤT KỂ Trạng thái xử lý — dùng cho chế độ --stt-video để nhắm vào
-// đúng 1 video cụ thể (kể cả video đã xử lý xong rồi), khác với getUnprocessedVideos() chỉ trả
-// về video có Trạng thái xử lý = "Chưa xử lý". Trả về null nếu không tìm thấy STT.
+// Reads 1 video by exact STT, REGARDLESS of processing status — used by --stt-video mode to
+// target 1 specific video (even an already-processed one), unlike getUnprocessedVideos() which
+// only returns videos with processing status = "Chưa xử lý". Returns null if the STT isn't found.
 async function getVideoByStt(stt) {
   try {
     const sheets = await getSheetsClient();
@@ -93,8 +94,9 @@ async function getVideoByStt(stt) {
   }
 }
 
-// Đọc toàn bộ quote ĐÃ CÓ SẴN của 1 video (theo STT Video nguồn) trong tab Quotes — dùng cho chế
-// độ --stt-video khi video đã có quote sẵn, để tái dùng thay vì gọi lại Gemini trích quote.
+// Reads all quotes ALREADY IN the Quotes tab for 1 video (by source video STT) — used by
+// --stt-video mode when the video already has quotes, to reuse them instead of calling Gemini
+// again.
 async function getQuotesByVideoStt(sttVideo) {
   try {
     const sheets = await getSheetsClient();
@@ -115,9 +117,10 @@ async function getQuotesByVideoStt(sttVideo) {
   }
 }
 
-// Trả về 1 Set các "STT Video nguồn" đã có ít nhất 1 quote trong tab Quotes — dùng để bỏ qua
-// video đã có quote rồi (phòng trường hợp Trạng thái xử lý ở tab Nguồn Video chưa kịp cập nhật
-// đúng do lần chạy trước bị lỗi giữa chừng), tránh ghi trùng quote cho cùng 1 video.
+// Returns a Set of "STT Video nguồn" (source video numbers) that already have at least 1 quote
+// in the Quotes tab — used to skip videos that already have quotes (in case the processing
+// status in the Nguồn Video tab wasn't updated correctly due to a previous run failing partway
+// through), avoiding duplicate quotes being written for the same video.
 async function getSttVideosWithQuotes() {
   try {
     const sheets = await getSheetsClient();
@@ -189,7 +192,7 @@ async function getQuotesMissingImages() {
     const rows = res.data.values || [];
 
     return rows
-      .filter((row) => row[0] && !row[9]) // cột J (image_filename) trống = chưa sinh ảnh
+      .filter((row) => row[0] && !row[9]) // column J (image_filename) empty = image not generated yet
       .map((row) => ({ stt: row[0], sttVideo: row[1], quote: row[2] }));
   } catch (err) {
     throw new Error(

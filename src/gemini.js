@@ -2,12 +2,12 @@ const { GoogleGenAI } = require('@google/genai');
 const config = require('./config');
 const { getPrompt, parseResponse } = require('./prompts');
 
-// Dùng alias "-latest" thay vì ghim 1 phiên bản cụ thể, để không phải sửa
-// code mỗi khi Google ngừng hỗ trợ 1 model đời cũ
+// Use the "-latest" alias instead of pinning a specific version, so the code doesn't need to
+// change every time Google deprecates an older model
 const MODEL = 'gemini-flash-latest';
 
 const REQUEST_TIMEOUT_MS = 60000;
-const MAX_ATTEMPTS = 2; // gọi lần đầu + retry 1 lần nếu timeout
+const MAX_ATTEMPTS = 2; // first call + 1 retry on timeout
 
 function isTimeoutError(err) {
   const message = (err?.message || '').toLowerCase();

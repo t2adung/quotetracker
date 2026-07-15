@@ -11,9 +11,9 @@ const DEFAULT_SEGMENTS = [
   { quote: 'Quote thứ 2 mẫu để xem trước.', imagePath: '' },
 ];
 
-// Số quote (segments) và độ dài từng quote thay đổi theo từng video nguồn, nên thời lượng
-// composition phải tính lại động dựa trên props thay vì cố định — xem totalDurationInFrames() ở
-// VideoSequence.jsx.
+// The number of quotes (segments) and each quote's length varies per source video, so the
+// composition's duration must be recalculated dynamically from props instead of being fixed —
+// see totalDurationInFrames() in VideoSequence.jsx.
 function calculateMetadata({ props }) {
   const segments = props.segments || [];
   return { durationInFrames: totalDurationInFrames(segments) };

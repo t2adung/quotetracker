@@ -7,14 +7,15 @@ const {
   READING_WORDS_PER_SECOND,
 } = require('./timing');
 
-// Dùng chung alias model với gemini.js — xem lý do ở đó
+// Shares the same model alias as gemini.js — see there for why
 const MODEL = 'gemini-flash-latest';
 
 function buildPrompt(videoTitle, quotesArray, topic) {
   const { audienceDescription } = getScriptPrompt(topic);
   const quoteList = quotesArray.map((q) => `- id ${q.stt}: "${q.quote}"`).join('\n');
-  // Ước lượng độ dài tối đa cho câu nối tự viết, dựa trên tốc độ đọc lướt trung bình (dùng chung
-  // với src/timing.js) và 1 thời lượng slide tham chiếu — để nhịp đọc câu nối không bị dồn chữ.
+  // Estimate a max length for self-written connector sentences, based on the average
+  // skim-reading speed (shared with src/timing.js) and a reference slide duration — so the
+  // connector sentences don't end up too dense to read comfortably.
   const hookMaxWords = Math.round(REFERENCE_TITLE_DURATION_SECONDS * READING_WORDS_PER_SECOND);
   const otherMaxWords = Math.round(REFERENCE_QUOTE_DURATION_SECONDS * READING_WORDS_PER_SECOND);
 
@@ -99,11 +100,11 @@ function parseScriptResponse(text) {
   };
 }
 
-// Nhận tiêu đề video + danh sách quote của CÙNG 1 video nguồn (dạng { stt, quote }), gọi Gemini
-// để chọn ra 3-4 quote phù hợp và ghép thành 1 kịch bản liền mạch. Trả về null nếu Gemini xác
-// định không đủ quote phù hợp để ghép (không ép ghép gượng gạo).
-// topic: chọn style/đối tượng khán giả trong src/script-prompts/ (mặc định "quote") — cùng cơ
-// chế với --topic (trích quote) và --image-topic (sinh ảnh nền) đã có.
+// Takes a video title + a list of quotes from THE SAME source video (shape { stt, quote }), calls
+// Gemini to pick 3-4 suitable quotes and merge them into 1 coherent script. Returns null if
+// Gemini decides there aren't enough suitable quotes to merge (no forced/awkward merging).
+// topic: selects the style/audience in src/script-prompts/ (default "quote") — same mechanism as
+// the existing --topic (quote extraction) and --image-topic (background image generation).
 async function buildScriptFromQuotes(videoTitle, quotesArray, topic = 'quote') {
   if (!Array.isArray(quotesArray) || quotesArray.length === 0) {
     return null;
@@ -172,8 +173,8 @@ function parseConsistencyResponse(text) {
   };
 }
 
-// Gọi thêm 1 lượt Gemini để tự kiểm tra (self-critique) kịch bản vừa ghép ở buildScriptFromQuotes
-// có mâu thuẫn ý, lặp ý, hoặc lệch giọng điệu không. Trả về { isConsistent, reason }.
+// Makes 1 more Gemini call to self-critique the script just built by buildScriptFromQuotes, for
+// contradictions, repeated ideas, or tone drift. Returns { isConsistent, reason }.
 async function validateScriptConsistency(scriptJson) {
   const prompt = buildConsistencyPrompt(scriptJson);
 
@@ -187,8 +188,9 @@ async function validateScriptConsistency(scriptJson) {
   try {
     return parseConsistencyResponse(rawText || '');
   } catch (err) {
-    // Không đọc được kết quả kiểm tra thì coi như KHÔNG nhất quán (an toàn là trên hết) — thà bỏ
-    // qua 1 script có thể vẫn ổn, còn hơn lỡ ghi vào Sheet 1 script chưa được kiểm tra kỹ
+    // If the check result can't be parsed, treat it as NOT consistent (safety first) — better to
+    // skip a script that might actually be fine than to accidentally write an unvetted script to
+    // the Sheet
     return {
       isConsistent: false,
       reason: `Không đọc được kết quả kiểm tra từ Gemini (lỗi parse JSON: ${err.message})`,

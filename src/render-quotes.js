@@ -13,13 +13,13 @@ const { uploadVideoToDrive, downloadImageIfExists } = require('./drive');
 
 const COMPOSITION_ID = 'VideoSequence';
 const ENTRY_POINT = path.join(__dirname, 'remotion', 'index.jsx');
-// publicDir = output/, để composition phục vụ ảnh nền qua staticFile('images/quote_XXX.png')
+// publicDir = output/, so the composition can serve background images via staticFile('images/quote_XXX.png')
 const OUTPUT_DIR = path.join(__dirname, '..', 'output');
 const IMAGES_DIR = path.join(OUTPUT_DIR, 'images');
 
-// --logo=<tên>: hiển thị "@<tên> sưu tầm" trong video (vd --logo=song.canbang). Bỏ trống thì không hiện.
-// --upload-drive: sau khi render xong 1 video, upload lên Google Drive và ghi link vào cột
-// "Link video output" ở tab Quotes cho mọi quote đã ghép vào video đó. Mặc định TẮT.
+// --logo=<name>: show "@<name> sưu tầm" in the video (e.g. --logo=song.canbang). Leave empty to hide it.
+// --upload-drive: after rendering 1 video, upload it to Google Drive and write the link into the
+// "Link video output" column in the Quotes tab for every quote merged into that video. Default OFF.
 function parseArgs(argv) {
   const args = { logo: '', uploadDrive: false };
   for (const arg of argv) {
@@ -37,8 +37,8 @@ function outputFilenameForVideo(sttVideo) {
   return `video_${padded}.mp4`;
 }
 
-// Gom quote theo "STT Video nguồn" — mỗi nhóm ghép thành 1 video duy nhất, quote đầu tiên
-// trong nhóm được hiểu là title.
+// Groups quotes by "STT Video nguồn" (source video) — each group is merged into 1 single video,
+// with the first quote in the group treated as the title.
 function groupQuotesBySttVideo(quotes) {
   const map = new Map();
   for (const quote of quotes) {
@@ -50,10 +50,11 @@ function groupQuotesBySttVideo(quotes) {
   return map;
 }
 
-// Ảnh nền không có sẵn cục bộ (ví dụ chạy trên 1 job/máy khác với lúc sinh ảnh bằng
-// --gen-images --upload-drive) → thử tải về từ Google Drive trước khi bỏ qua hẳn quote đó. Chỉ
-// thử khi đã cấu hình GOOGLE_DRIVE_FOLDER_ID, tránh báo lỗi "thiếu biến môi trường" gây nhiễu cho
-// người chỉ dùng ảnh cục bộ, không dùng Drive.
+// Background image not available locally (e.g. running on a different job/machine than the one
+// that generated it via --gen-images --upload-drive) → try downloading it from Google Drive
+// before giving up on that quote entirely. Only attempted when GOOGLE_DRIVE_FOLDER_ID is
+// configured, to avoid a confusing "missing environment variable" error for people who only use
+// local images and don't use Drive.
 async function ensureImageAvailable(imageFilename) {
   const imageAbsolutePath = path.join(IMAGES_DIR, imageFilename);
   if (fs.existsSync(imageAbsolutePath)) return true;
@@ -68,8 +69,8 @@ async function ensureImageAvailable(imageFilename) {
   return found;
 }
 
-// Bỏ qua (không chặn cả video) những quote thiếu ảnh nền (cả cục bộ lẫn trên Drive); chỉ ghép
-// các quote còn lại thành segments để render.
+// Skips (without blocking the whole video) quotes missing a background image (both locally and
+// on Drive); only merges the remaining quotes into segments to render.
 async function buildSegments(quotesOfVideo) {
   const segments = [];
   const sttDaDung = [];
@@ -98,9 +99,9 @@ async function buildSegments(quotesOfVideo) {
 async function renderVideo(bundleLocation, sttVideo, segments, logo) {
   const inputProps = { segments, logo };
 
-  // Phải chọn lại composition với đúng inputProps của từng video — Remotion render theo
-  // composition.props đã "resolve" lúc selectComposition(), không phải theo inputProps truyền
-  // riêng cho renderMedia().
+  // Must re-select the composition with each video's own inputProps — Remotion renders using
+  // composition.props already "resolved" at selectComposition() time, not the inputProps passed
+  // separately to renderMedia().
   const composition = await selectComposition({ serveUrl: bundleLocation, id: COMPOSITION_ID, inputProps });
 
   const outputLocation = path.join(OUTPUT_DIR, outputFilenameForVideo(sttVideo));

@@ -1,16 +1,18 @@
-// Style ảnh cho chủ đề "quote" — dùng cho video trích quote hiện tại.
-// Giữ ngắn gọn dạng cụm từ (không viết câu đầy đủ) để giảm token input mỗi lần gọi, vẫn đủ
-// các ràng buộc bắt buộc: 1 tấm ảnh liền mạch (không phải ảnh ghép 2 nửa/mảng màu rời rạc),
-// người châu Á (ưu tiên Việt Nam) chỉ chiếm khoảng 1/4 khung hình chứ không bị cắt cụt còn 1
-// mẩu nhỏ, tông pastel sáng, không chèn chữ vào ảnh.
+// Image style for the "quote" topic — used for the current quote-extraction video.
+// Kept as short phrases (not full sentences) to reduce input tokens per call, while still
+// covering the required constraints: 1 single cohesive photo (not a 2-half collage or
+// separate solid-color blocks), Asian person (ideally Vietnamese) occupying only about 1/4
+// of the frame rather than being cropped down to a small sliver, bright pastel tones, no
+// text inserted into the image.
 const STYLE_PROMPT_SUFFIX = `Style: cinematic photo, bright soft pastel tones, minimal, airy, peaceful — 1 single cohesive real photograph filling the whole frame (NOT a collage, NOT split panels, NOT a separate flat solid-color block glued onto part of the frame).
 Person (if shown): Asian, ideally Vietnamese, appearance and styling. Whole figure visible, small in the frame — occupying roughly 1/4 of the frame — not cropped by the frame edge, not just a hand/shoulder sliver. Shown from behind, from the side, or at a distance so the face is not clearly recognizable.
 Any empty space for a future text overlay must come naturally from the scene itself (open sky, distant blurred background) — never as an artificial separate rectangle.
 No text: absolutely no letters, words, numbers, captions, watermark, or typography anywhere in the image.`;
 
-// Vài "bối cảnh gốc" thiên về hành động thực tế đời thường (nấu ăn, vẽ tranh, đi dạo...) để
-// chọn ngẫu nhiên 1 cái dùng chung cho toàn bộ ảnh của 1 video — đảm bảo các ảnh trong cùng
-// video có cùng chủ đề/bối cảnh/hành động thay vì mỗi ảnh 1 nơi khác nhau.
+// A handful of "base scenes" centered on everyday real-life actions (cooking, painting,
+// walking...) to randomly pick 1 that's shared across all images of a video — keeps all
+// images in the same video on the same theme/setting/action instead of scattering them
+// across unrelated places.
 const SCENE_ANCHORS = [
   'cooking a simple meal in a bright pastel-toned kitchen',
   'painting on a canvas outdoors in a pastel-lit garden',

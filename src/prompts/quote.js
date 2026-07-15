@@ -65,8 +65,8 @@ markdown hay text nào khác:
 ]`;
 }
 
-// Luôn viết hoa chữ cái đầu tiên của quote — làm thêm ở code cho chắc, phòng trường hợp Gemini
-// thỉnh thoảng quên áp dụng đúng yêu cầu định dạng đã nêu trong prompt.
+// Always capitalize the first letter of the quote — done again in code as a safety net, in
+// case Gemini occasionally forgets to apply the formatting requirement stated in the prompt.
 function capitalizeFirstLetter(text) {
   if (!text) return text;
   return text.charAt(0).toUpperCase() + text.slice(1);

@@ -1,24 +1,25 @@
-// Cấu hình thời lượng slide dùng CHUNG giữa Remotion (dựng video, xem src/remotion/VideoSequence.jsx)
-// và Gemini (ghép kịch bản, xem src/script-builder.js) — đặt 1 chỗ duy nhất để 2 bên không bị
-// lệch nếu sau này đổi tốc độ đọc.
+// Slide duration config shared between Remotion (video rendering, see
+// src/remotion/VideoSequence.jsx) and Gemini (script building, see src/script-builder.js) — kept
+// in one place so the two stay in sync if the reading speed changes later.
 const FPS = 30;
 
-// Tốc độ đọc lướt trung bình (từ/giây) — dùng để tính thời lượng slide THEO ĐÚNG độ dài quote
-// thật sự (xem durationInFramesForText bên dưới): quote dài hiện lâu hơn, quote ngắn hiện nhanh
-// hơn, luôn vừa đủ để đọc lướt kịp, không quá chậm cũng không quá nhanh.
+// Average skim-reading speed (words/second) — used to compute each slide's duration based on the
+// ACTUAL quote length (see durationInFramesForText below): longer quotes stay on screen longer,
+// shorter ones move faster, always just enough to skim-read comfortably, not too slow or fast.
 const READING_WORDS_PER_SECOND = 3;
 
-// Chặn trên/dưới để tránh slide quá ngắn (chưa kịp đọc, dù quote rất ngắn) hoặc quá dài (video bị
-// lê thê, dù quote rất dài).
+// Upper/lower bounds to avoid a slide that's too short (not enough time to read, even for a very
+// short quote) or too long (video drags, even for a very long quote).
 const MIN_QUOTE_DURATION_SECONDS = 3;
 const MAX_QUOTE_DURATION_SECONDS = 8;
-// Quote/đoạn đầu tiên (title/hook) hiện lâu hơn 1 chút so với mức tính theo chữ, vì chữ to hơn +
-// người xem cần thêm thời gian "bắt nhịp" video ngay từ đầu.
+// The first quote/segment (title/hook) stays on screen a bit longer than the text-based
+// calculation, since the font is bigger and viewers need a moment to settle into the video.
 const TITLE_EXTRA_SECONDS = 1;
 
-// Thời lượng THAM CHIẾU (không dùng để render trực tiếp) — chỉ để script-builder.js ước lượng số
-// từ tối đa cho câu nối tự viết khi ghép kịch bản (Milestone 4b), tách biệt với thời lượng thật
-// của từng slide 1-quote-1-slide (đã tính động theo text ở durationInFramesForText).
+// REFERENCE durations (not used for actual rendering) — only used by script-builder.js to
+// estimate a max word count for self-written connector sentences when building a script
+// (Milestone 4b), separate from the real per-slide duration in a regular 1-quote-1-slide video
+// (already computed dynamically from text in durationInFramesForText).
 const REFERENCE_TITLE_DURATION_SECONDS = 5;
 const REFERENCE_QUOTE_DURATION_SECONDS = 4;
 
@@ -26,8 +27,8 @@ function wordCount(text) {
   return (text || '').trim().split(/\s+/).filter(Boolean).length;
 }
 
-// Tính thời lượng (số frame) hiển thị 1 slide dựa theo độ dài quote thật (đếm theo số từ, chia
-// cho tốc độ đọc lướt trung bình), có chặn trên/dưới để không quá ngắn/quá dài.
+// Computes how many frames to show 1 slide for, based on the actual quote length (word count
+// divided by average reading speed), clamped to the bounds above so it's never too short/long.
 function durationInFramesForText(text, { isTitle = false } = {}) {
   const seconds = wordCount(text) / READING_WORDS_PER_SECOND + (isTitle ? TITLE_EXTRA_SECONDS : 0);
   const clamped = Math.min(Math.max(seconds, MIN_QUOTE_DURATION_SECONDS), MAX_QUOTE_DURATION_SECONDS);

@@ -18,26 +18,32 @@ const { buildScriptFromQuotes, validateScriptConsistency } = require('./script-b
 
 const STATUS_DA_TRICH_QUOTE = 'Đã trích quote';
 
-// Đọc tuỳ chọn dòng lệnh:
-//   --topic=<tên chủ đề>     chọn prompt trong src/prompts/ (mặc định "quote")
-//   --gen-images             bật sinh ảnh nền cho từng quote (mặc định TẮT — API tính phí riêng)
-//   --resume-images          chỉ sinh ảnh còn thiếu cho các quote đã có sẵn trong Sheet, KHÔNG
-//                            gọi lại Gemini trích quote — dùng khi lần chạy trước bị lỗi/hết
-//                            quota giữa chừng lúc sinh ảnh, để không tốn token trích quote lại
-//   --image-scope=quote|video  sinh 1 ảnh/quote (mặc định) hay chỉ 1 ảnh dùng chung cho cả video
-//   --image-topic=<tên chủ đề> chọn style ảnh trong src/image-prompts/ (mặc định "quote")
-//   --upload-drive           kèm --gen-images: upload luôn mỗi ảnh nền vừa sinh lên Google Drive
-//                            (thư mục GOOGLE_DRIVE_FOLDER_ID), để render-quotes.js tải lại được
-//                            kể cả khi chạy trên máy/job khác (mặc định TẮT)
-//   --build-script           bật ghép quote thành kịch bản sau khi trích quote (mặc định TẮT —
-//                            gọi thêm 2 lượt Gemini/video: ghép script + tự kiểm tra nhất quán)
-//   --script-topic=<tên chủ đề> chọn style ghép kịch bản trong src/script-prompts/ (mặc định
-//                            "quote"), chỉ có tác dụng khi bật --build-script
-//   --stt-video=<STT>        chỉ xử lý ĐÚNG 1 video theo "STT Video nguồn" này, bất kể Trạng
-//                            thái xử lý (kể cả video đã xử lý xong rồi) — dùng để test/chạy lại
-//                            1 video cụ thể. Nếu video đã có quote sẵn trong tab Quotes thì TÁI
-//                            DÙNG quote đó (không gọi lại Gemini trích quote) — tiện để test riêng
-//                            bước ghép script (--build-script) với 1 video đã có quote sẵn
+// Parse command-line options:
+//   --topic=<topic name>     select the prompt in src/prompts/ (default "quote")
+//   --gen-images             enable generating background images per quote (default OFF — a
+//                            separately billed API)
+//   --resume-images          only generate images still missing for quotes already in the
+//                            Sheet, WITHOUT calling Gemini to re-extract quotes — used when the
+//                            previous run failed/ran out of quota partway through image
+//                            generation, to avoid re-spending tokens on quote extraction
+//   --image-scope=quote|video  generate 1 image/quote (default) or just 1 shared image for the
+//                            whole video
+//   --image-topic=<topic name> select the image style in src/image-prompts/ (default "quote")
+//   --upload-drive           with --gen-images: also upload each generated background image to
+//                            Google Drive (folder GOOGLE_DRIVE_FOLDER_ID), so render-quotes.js
+//                            can fetch it back even when run on a different machine/job (default
+//                            OFF)
+//   --build-script           enable merging quotes into a script after extraction (default OFF —
+//                            calls Gemini 2 extra times per video: building the script + self
+//                            consistency check)
+//   --script-topic=<topic name> select the script-building style in src/script-prompts/ (default
+//                            "quote"), only takes effect when --build-script is on
+//   --stt-video=<STT>        only process EXACTLY 1 video by this "STT Video nguồn" (source video
+//                            number), regardless of processing status (even an already-processed
+//                            video) — used to test/re-run 1 specific video. If the video already
+//                            has quotes in the Quotes tab, REUSE them (don't call Gemini to
+//                            re-extract) — handy for testing just the script-building step
+//                            (--build-script) with a video that already has quotes
 function parseArgs(argv) {
   const args = {
     topic: 'quote',
@@ -74,13 +80,16 @@ function parseArgs(argv) {
   return args;
 }
 
-// Sinh ảnh nền cho 1 danh sách quote (thường là quote của cùng 1 video).
-//   imageScope === 'video': chỉ sinh đúng 1 ảnh đại diện, dùng chung cho mọi quote trong video.
-//   imageScope === 'quote' (mặc định): sinh 1 ảnh/quote, tuần tự — chọn 1 bối cảnh dùng chung,
-//     truyền ảnh liền trước làm ảnh tham chiếu cho ảnh kế tiếp, để cả chuỗi ảnh cùng chủ đề/bối
-//     cảnh nhưng tiến triển tuần tự, tạo cảm giác như đang xem 1 video chuyển động.
-// Upload 1 ảnh nền vừa sinh lên Google Drive — lỗi chỉ log lại (không throw), vì thiếu link Drive
-// không nên chặn cả bước sinh ảnh (ảnh vẫn dùng được cục bộ cho render-quotes.js chạy cùng máy).
+// Generate background images for a list of quotes (usually all quotes from 1 video).
+//   imageScope === 'video': generate only 1 representative image, shared by every quote in the
+//     video.
+//   imageScope === 'quote' (default): generate 1 image/quote, sequentially — pick 1 shared
+//     scene, pass the previous image as a reference for the next one, so the whole sequence
+//     shares the same theme/setting but progresses gradually, giving the feel of watching a
+//     moving video.
+// Upload 1 newly generated background image to Google Drive — errors are only logged (not
+// thrown), since a missing Drive link shouldn't block the image-generation step (the image is
+// still usable locally by render-quotes.js running on the same machine).
 async function uploadImageIfRequested(uploadDrive, filename) {
   if (!uploadDrive) return;
   try {
@@ -91,7 +100,7 @@ async function uploadImageIfRequested(uploadDrive, filename) {
   }
 }
 
-// Lỗi ở 1 quote/1 ảnh chỉ log lại, không chặn các quote còn lại.
+// An error on 1 quote/1 image is only logged, not blocking the remaining quotes.
 async function generateImagesForQuotes(quotes, imageScope, imageTopic, uploadDrive) {
   if (quotes.length === 0) return;
 
@@ -144,9 +153,10 @@ async function generateImagesForQuotes(quotes, imageScope, imageTopic, uploadDri
   }
 }
 
-// Ghép các quote vừa trích của 1 video thành 1 kịch bản (script), tự kiểm tra tính nhất quán,
-// rồi ghi vào tab Scripts nếu đạt. Không throw ra ngoài — lỗi ở bước này chỉ log lại, không
-// chặn việc cập nhật trạng thái video (quote đã ghi vào Sheet thành công là đủ để coi là xong).
+// Merges the quotes just extracted from 1 video into a script, self-checks its consistency, then
+// writes it to the Scripts tab if it passes. Doesn't throw outward — errors in this step are only
+// logged, not blocking the video status update (successfully writing quotes to the Sheet is
+// already enough to consider the video done).
 async function buildAndSaveScript(video, quotes, scriptTopic) {
   console.log('  Đang ghép kịch bản từ các quote vừa trích...');
 
@@ -239,8 +249,9 @@ async function runExtractQuotes(topic, genImages, imageScope, imageTopic, buildS
   for (const video of videos) {
     console.log(`\n▶ Đang xử lý video STT ${video.stt}: "${video.tieuDe}"`);
 
-    // Phòng trường hợp Trạng thái xử lý ở tab Nguồn Video chưa kịp cập nhật đúng (lần chạy trước
-    // lỗi giữa chừng sau khi đã ghi quote) — kiểm tra thêm tab Quotes, tránh ghi trùng quote.
+    // In case the processing status in the Nguồn Video tab wasn't updated correctly (the
+    // previous run failed partway through, after quotes were already written) — also check the
+    // Quotes tab to avoid writing duplicate quotes.
     if (sttVideosWithQuotes.has(String(video.stt))) {
       console.log(`  Video STT ${video.stt} đã có quote trong tab Quotes — bỏ qua, không trích lại.`);
       videoBoQua.push(video.stt);
@@ -280,9 +291,10 @@ async function runExtractQuotes(topic, genImages, imageScope, imageTopic, buildS
   }
 }
 
-// Chế độ --stt-video: chỉ xử lý đúng 1 video theo STT, bất kể Trạng thái xử lý. Nếu video đã có
-// quote sẵn trong tab Quotes thì tái dùng, không gọi lại Gemini trích quote — tiện để test riêng
-// bước ghép script với 1 video đã có quote sẵn (đúng kịch bản nghiệm thu Milestone 4b).
+// --stt-video mode: only process exactly 1 video by STT, regardless of processing status. If the
+// video already has quotes in the Quotes tab, reuse them instead of calling Gemini again — handy
+// for testing just the script-building step with a video that already has quotes (matches the
+// Milestone 4b acceptance scenario).
 async function runForSingleVideo(sttVideo, topic, genImages, imageScope, imageTopic, buildScript, scriptTopic, uploadDrive) {
   let video;
   try {

@@ -3,8 +3,8 @@ const { AbsoluteFill, Series } = require('remotion');
 const { QuoteSlide } = require('./QuoteVideo');
 const { FPS, durationInFramesForText } = require('../timing');
 
-// Tổng thời lượng (số frame) của cả video — cộng dồn thời lượng từng slide, mỗi slide đã tính
-// động theo độ dài quote thật (xem durationInFramesForText ở src/timing.js).
+// Total video duration (in frames) — sums up each slide's duration, already computed dynamically
+// from the actual quote length (see durationInFramesForText in src/timing.js).
 function totalDurationInFrames(segments) {
   if (!segments || segments.length === 0) return FPS;
   return segments.reduce(
@@ -13,8 +13,9 @@ function totalDurationInFrames(segments) {
   );
 }
 
-// Ghép nhiều quote thuộc cùng 1 "STT Video nguồn" thành 1 video duy nhất, phát nối tiếp nhau.
-// Quote đầu tiên (segments[0]) là title, hiển thị to/đậm hơn (xem isTitle trong QuoteSlide).
+// Combines multiple quotes belonging to the same "STT Video nguồn" (source video) into 1 single
+// video, played back to back. The first quote (segments[0]) is the title, shown bigger/bolder
+// (see isTitle in QuoteSlide).
 function VideoSequence({ segments, logo }) {
   return (
     <AbsoluteFill style={{ backgroundColor: '#000' }}>

@@ -4,8 +4,8 @@ const { GoogleGenAI } = require('@google/genai');
 const config = require('./config');
 const { getImageStyle } = require('./image-prompts');
 
-// Model sinh ảnh — đang tạm dùng Gemini 2.5 Flash Image ("Nano Banana"), đổi sang
-// "gemini-3.1-flash-image" (Nano Banana 2) khi hết hạn dùng thử/điều kiện billing phù hợp.
+// Image generation model — currently using Gemini 2.5 Flash Image ("Nano Banana"), switch to
+// "gemini-3.1-flash-image" (Nano Banana 2) once the trial period ends / billing terms fit.
 const IMAGE_MODEL = 'gemini-2.5-flash-image';
 
 const OUTPUT_DIR = path.join(__dirname, '..', 'output', 'images');
@@ -45,8 +45,9 @@ async function generateBackgroundImage({
 
   const parts = [];
   if (previousImageBytes) {
-    // Đưa ảnh của quote ngay trước làm ảnh tham chiếu, để model giữ đúng nhân vật/bối cảnh/
-    // ánh sáng xuyên suốt, chỉ tiến triển nhẹ giữa các khung hình (cảm giác video chuyển động).
+    // Pass the previous quote's image as a reference, so the model keeps the same
+    // character/setting/lighting throughout, only progressing slightly between frames (giving a
+    // moving-video feel).
     parts.push({ inlineData: { mimeType: 'image/png', data: previousImageBytes } });
   }
   parts.push({ text: prompt });
