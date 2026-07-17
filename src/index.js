@@ -90,14 +90,17 @@ function parseArgs(argv) {
 // Upload 1 newly generated background image to Google Drive — errors are only logged (not
 // thrown), since a missing Drive link shouldn't block the image-generation step (the image is
 // still usable locally by render-quotes.js running on the same machine).
+// TẠM PENDING: tính năng upload Drive đang tạm ngưng, bỏ comment đoạn code bên dưới khi cần dùng
+// lại (đã setup xong OAuth, xem README mục "Upload video output lên Google Drive").
 async function uploadImageIfRequested(uploadDrive, filename) {
   if (!uploadDrive) return;
-  try {
-    await uploadImageToDrive(path.join(IMAGES_OUTPUT_DIR, filename), filename);
-    console.log(`  Đã upload ảnh nền "${filename}" lên Google Drive.`);
-  } catch (err) {
-    console.error(`  Lỗi khi upload ảnh nền "${filename}" lên Google Drive: ${err.message}`);
-  }
+  console.log(`  (Upload Drive đang tạm ngưng — bỏ qua upload ảnh nền "${filename}".)`);
+  // try {
+  //   await uploadImageToDrive(path.join(IMAGES_OUTPUT_DIR, filename), filename);
+  //   console.log(`  Đã upload ảnh nền "${filename}" lên Google Drive.`);
+  // } catch (err) {
+  //   console.error(`  Lỗi khi upload ảnh nền "${filename}" lên Google Drive: ${err.message}`);
+  // }
 }
 
 // An error on 1 quote/1 image is only logged, not blocking the remaining quotes.

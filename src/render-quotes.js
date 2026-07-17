@@ -166,19 +166,22 @@ async function main() {
       );
       sttThanhCong.push(...sttDaDung);
 
+      // TẠM PENDING: tính năng upload Drive đang tạm ngưng, bỏ comment đoạn code bên dưới khi cần
+      // dùng lại (đã setup xong OAuth, xem README mục "Upload video output lên Google Drive").
       if (uploadDrive) {
-        try {
-          const fileName = path.basename(outputLocation);
-          console.log(`  ⇪ Đang upload ${fileName} lên Google Drive...`);
-          const link = await uploadVideoToDrive(outputLocation, fileName);
-          console.log(`  ✔ Đã upload, link: ${link}`);
-
-          for (const stt of sttDaDung) {
-            await updateQuoteOutputLink(stt, link);
-          }
-        } catch (err) {
-          console.error(`  ✘ Lỗi khi upload video STT ${sttVideo} lên Drive: ${err.message}`);
-        }
+        console.log(`  (Upload Drive đang tạm ngưng — bỏ qua upload video STT ${sttVideo}.)`);
+        // try {
+        //   const fileName = path.basename(outputLocation);
+        //   console.log(`  ⇪ Đang upload ${fileName} lên Google Drive...`);
+        //   const link = await uploadVideoToDrive(outputLocation, fileName);
+        //   console.log(`  ✔ Đã upload, link: ${link}`);
+        //
+        //   for (const stt of sttDaDung) {
+        //     await updateQuoteOutputLink(stt, link);
+        //   }
+        // } catch (err) {
+        //   console.error(`  ✘ Lỗi khi upload video STT ${sttVideo} lên Drive: ${err.message}`);
+        // }
       }
     } catch (err) {
       console.error(`  ✘ Lỗi khi render video STT ${sttVideo}: ${err.message}`);
