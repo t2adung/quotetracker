@@ -1,6 +1,6 @@
-// Thư viện style ảnh theo chủ đề — song song với src/prompts/ (prompt text). Mỗi chủ đề 1
-// file, export { styleSuffix, sceneAnchors }. Thêm chủ đề mới: tạo file rồi đăng ký vào
-// TOPICS bên dưới, không cần sửa code trong image-gen.js.
+// Image style library by topic — parallel to src/prompts/ (text prompts). Each topic is 1
+// file, exporting { styleSuffix, sceneAnchors }. To add a new topic: create a file and
+// register it in TOPICS below, no need to change code in image-gen.js.
 const TOPICS = {
   quote: require('./quote'),
 };

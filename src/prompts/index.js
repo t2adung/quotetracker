@@ -1,6 +1,6 @@
-// Thư viện prompt theo chủ đề. Mỗi chủ đề là 1 file riêng trong thư mục này, export
-// { build(vars), parse(text) }. Khi cần thêm chủ đề mới (ví dụ ngoài "quote"), tạo file
-// mới rồi đăng ký vào TOPICS bên dưới — không cần sửa code gọi Gemini ở gemini.js.
+// Prompt library by topic. Each topic is its own file in this folder, exporting
+// { build(vars), parse(text) }. To add a new topic (e.g. besides "quote"), create a new
+// file and register it in TOPICS below — no need to change the Gemini-calling code in gemini.js.
 const TOPICS = {
   quote: require('./quote'),
 };

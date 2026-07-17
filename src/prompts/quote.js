@@ -42,10 +42,17 @@ Yêu cầu bắt buộc cho các quote từ vị trí số 2 trở đi:
 - Ưu tiên chọn các câu có TÍNH LIÊN KẾT với nhau — cùng nằm trong 1 mạch ý/chủ đề xuyên suốt của
   video, để sau này dễ ghép lại thành 1 kịch bản mạch lạc; tránh chọn các câu rời rạc, mỗi câu 1
   chủ đề không liên quan đến nhau
+- Độ dài mỗi quote: khoảng 80-200 ký tự (tính cả dấu câu/khoảng trắng) — ĐỦ DÀI để trọn 1 ý, đọc
+  hiểu được ngay cả khi tách rời khỏi video, KHÔNG dừng ở 1 câu quá cụt lủn/thiếu ngữ cảnh. Nếu
+  câu nói gốc quá ngắn để tự đứng độc lập, được phép GHÉP THÊM phần câu/ý nói liền ngay trước hoặc
+  sau nó trong video (vẫn đúng nguyên lời đã nói, không tự bịa thêm nội dung ngoài video) để thành
+  1 đoạn liền mạch, mượt mà, đủ nghĩa. Không vượt quá 200 ký tự để tránh tràn khung hình khi hiển
+  thị trong video ngắn
 
 Với mỗi quote, trả về:
-- quote: nguyên văn câu nói (tiếng Việt, giữ đúng lời) — riêng quote đầu tiên là câu hook tự viết
-  như mô tả ở trên
+- quote: đúng lời đã nói trong video (tiếng Việt, không bịa thêm nội dung ngoài video, có thể ghép
+  thêm ý liền kề như hướng dẫn ở trên để đủ nghĩa) — riêng quote đầu tiên là câu hook tự viết như
+  mô tả ở trên
 - context: bối cảnh/ý nghĩa ngắn gọn của câu nói (quote đầu tiên ghi "Câu hook mở đầu")
 - timestamp: thời điểm xuất hiện trong video, định dạng "mm:ss" (quote đầu tiên để trống "")
 - hookScore: điểm hook từ 1 đến 5 (5 = hấp dẫn nhất để mở đầu video ngắn; quote đầu tiên luôn là 5)
@@ -58,8 +65,8 @@ markdown hay text nào khác:
 ]`;
 }
 
-// Luôn viết hoa chữ cái đầu tiên của quote — làm thêm ở code cho chắc, phòng trường hợp Gemini
-// thỉnh thoảng quên áp dụng đúng yêu cầu định dạng đã nêu trong prompt.
+// Always capitalize the first letter of the quote — done again in code as a safety net, in
+// case Gemini occasionally forgets to apply the formatting requirement stated in the prompt.
 function capitalizeFirstLetter(text) {
   if (!text) return text;
   return text.charAt(0).toUpperCase() + text.slice(1);

@@ -1,6 +1,7 @@
-// Thư viện style kịch bản theo chủ đề — song song với src/prompts/ (prompt trích quote) và
-// src/image-prompts/ (style ảnh). Mỗi chủ đề 1 file, export { audienceDescription }. Thêm chủ đề
-// mới: tạo file rồi đăng ký vào TOPICS bên dưới, không cần sửa code trong script-builder.js.
+// Script style library by topic — parallel to src/prompts/ (quote extraction prompts) and
+// src/image-prompts/ (image style). Each topic is 1 file, exporting { audienceDescription }. To
+// add a new topic: create a file and register it in TOPICS below, no need to change code in
+// script-builder.js.
 const TOPICS = {
   quote: require('./quote'),
 };

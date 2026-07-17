@@ -1,10 +1,11 @@
-// Chạy nối tiếp 2 bước: trích quote (src/index.js) rồi dựng video Remotion (src/render-quotes.js)
-// — tiện khi muốn làm hết 1 lần thay vì gõ 2 lệnh riêng. Chạy bằng process con (không gộp code)
-// để giữ nguyên logic/log của từng bước, không cần sửa gì ở index.js hay render-quotes.js.
+// Runs 2 steps back to back: extract quotes (src/index.js) then render the Remotion video
+// (src/render-quotes.js) — handy for doing everything in 1 go instead of typing 2 separate
+// commands. Runs each as a child process (not merged code) to keep each step's logic/logging
+// intact, with no changes needed to index.js or render-quotes.js.
 //   npm run run:all
 //   npm run run:all -- --gen-images --build-script --logo=song.canbang
-// Mọi cờ dòng lệnh (--gen-images, --build-script, --logo=...) được chuyển tiếp nguyên vẹn cho cả
-// 2 bước — mỗi bước tự bỏ qua cờ nào không liên quan tới mình.
+// Every command-line flag (--gen-images, --build-script, --logo=...) is forwarded as-is to both
+// steps — each step ignores whichever flags don't apply to it.
 const { spawnSync } = require('child_process');
 const path = require('path');
 

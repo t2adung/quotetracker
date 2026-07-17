@@ -1,22 +1,23 @@
 const { GoogleGenAI } = require('@google/genai');
 const config = require('./config');
 const { getScriptPrompt } = require('./script-prompts');
-const { TITLE_DURATION_SECONDS, QUOTE_DURATION_SECONDS } = require('./timing');
+const {
+  REFERENCE_TITLE_DURATION_SECONDS,
+  REFERENCE_QUOTE_DURATION_SECONDS,
+  READING_WORDS_PER_SECOND,
+} = require('./timing');
 
-// Dùng chung alias model với gemini.js — xem lý do ở đó
+// Shares the same model alias as gemini.js — see there for why
 const MODEL = 'gemini-flash-latest';
-
-// Ước lượng tốc độ đọc phụ đề tiếng Việt trên màn hình, dùng để gợi ý độ dài tối đa cho câu nối
-// tự viết — để khi dựng thành video sau này (Milestone 5b), nhịp đọc mỗi đoạn khớp với đúng thời
-// lượng slide đã dùng khi dựng video 1-quote-1-slide bình thường (xem src/timing.js), không bị
-// dồn chữ hay đọc không kịp.
-const READING_WORDS_PER_SECOND = 3;
 
 function buildPrompt(videoTitle, quotesArray, topic) {
   const { audienceDescription } = getScriptPrompt(topic);
   const quoteList = quotesArray.map((q) => `- id ${q.stt}: "${q.quote}"`).join('\n');
-  const hookMaxWords = Math.round(TITLE_DURATION_SECONDS * READING_WORDS_PER_SECOND);
-  const otherMaxWords = Math.round(QUOTE_DURATION_SECONDS * READING_WORDS_PER_SECOND);
+  // Estimate a max length for self-written connector sentences, based on the average
+  // skim-reading speed (shared with src/timing.js) and a reference slide duration — so the
+  // connector sentences don't end up too dense to read comfortably.
+  const hookMaxWords = Math.round(REFERENCE_TITLE_DURATION_SECONDS * READING_WORDS_PER_SECOND);
+  const otherMaxWords = Math.round(REFERENCE_QUOTE_DURATION_SECONDS * READING_WORDS_PER_SECOND);
 
   return `Bạn là biên tập viên kịch bản video ngắn (TikTok/Shorts), ${audienceDescription}.
 
@@ -44,13 +45,13 @@ Yêu cầu bắt buộc:
   chốt), được phép dùng ÍT HƠN quote, hoặc trả về kết quả rỗng như hướng dẫn bên dưới — TUYỆT ĐỐI
   không ghép gượng ép cho đủ 4 phần
 
-QUAN TRỌNG về thời lượng: khi dựng thành video, mỗi đoạn (segment) sẽ được hiển thị trong đúng
-thời lượng slide như cách dựng video 1-quote-1-slide bình thường hiện tại — đoạn "hook" khoảng
-${TITLE_DURATION_SECONDS} giây, các đoạn "van_de"/"insight"/"chot" khoảng ${QUOTE_DURATION_SECONDS}
-giây mỗi đoạn. Với CÂU NỐI DO BẠN TỰ VIẾT (không áp dụng cho phần quote nguyên văn, vì quote giữ
-nguyên độ dài gốc): phải đủ ngắn để đọc thoải mái trong đúng khoảng thời gian đó — tối đa khoảng
-${hookMaxWords} từ cho đoạn hook, ${otherMaxWords} từ cho các đoạn còn lại. Không viết câu nối dài
-dòng làm chậm nhịp so với cách dựng video bình thường.
+QUAN TRỌNG về thời lượng: khi dựng thành video, mỗi đoạn (segment) sẽ được hiển thị đủ lâu để đọc
+lướt kịp theo đúng độ dài chữ thật sự (đoạn dài hiện lâu hơn, đoạn ngắn hiện nhanh hơn) — đoạn
+"hook" thường khoảng ${REFERENCE_TITLE_DURATION_SECONDS} giây, các đoạn "van_de"/"insight"/"chot"
+thường khoảng ${REFERENCE_QUOTE_DURATION_SECONDS} giây mỗi đoạn. Với CÂU NỐI DO BẠN TỰ VIẾT (không
+áp dụng cho phần quote nguyên văn, vì quote giữ nguyên độ dài gốc): phải đủ ngắn để đọc thoải mái
+trong khoảng thời gian đó — tối đa khoảng ${hookMaxWords} từ cho đoạn hook, ${otherMaxWords} từ
+cho các đoạn còn lại. Không viết câu nối dài dòng làm chậm nhịp so với cách dựng video bình thường.
 
 CHỈ trả về một object JSON hợp lệ theo đúng định dạng sau, không thêm bất kỳ chữ giải thích,
 markdown hay text nào khác:
@@ -99,11 +100,11 @@ function parseScriptResponse(text) {
   };
 }
 
-// Nhận tiêu đề video + danh sách quote của CÙNG 1 video nguồn (dạng { stt, quote }), gọi Gemini
-// để chọn ra 3-4 quote phù hợp và ghép thành 1 kịch bản liền mạch. Trả về null nếu Gemini xác
-// định không đủ quote phù hợp để ghép (không ép ghép gượng gạo).
-// topic: chọn style/đối tượng khán giả trong src/script-prompts/ (mặc định "quote") — cùng cơ
-// chế với --topic (trích quote) và --image-topic (sinh ảnh nền) đã có.
+// Takes a video title + a list of quotes from THE SAME source video (shape { stt, quote }), calls
+// Gemini to pick 3-4 suitable quotes and merge them into 1 coherent script. Returns null if
+// Gemini decides there aren't enough suitable quotes to merge (no forced/awkward merging).
+// topic: selects the style/audience in src/script-prompts/ (default "quote") — same mechanism as
+// the existing --topic (quote extraction) and --image-topic (background image generation).
 async function buildScriptFromQuotes(videoTitle, quotesArray, topic = 'quote') {
   if (!Array.isArray(quotesArray) || quotesArray.length === 0) {
     return null;
@@ -172,8 +173,8 @@ function parseConsistencyResponse(text) {
   };
 }
 
-// Gọi thêm 1 lượt Gemini để tự kiểm tra (self-critique) kịch bản vừa ghép ở buildScriptFromQuotes
-// có mâu thuẫn ý, lặp ý, hoặc lệch giọng điệu không. Trả về { isConsistent, reason }.
+// Makes 1 more Gemini call to self-critique the script just built by buildScriptFromQuotes, for
+// contradictions, repeated ideas, or tone drift. Returns { isConsistent, reason }.
 async function validateScriptConsistency(scriptJson) {
   const prompt = buildConsistencyPrompt(scriptJson);
 
@@ -187,8 +188,9 @@ async function validateScriptConsistency(scriptJson) {
   try {
     return parseConsistencyResponse(rawText || '');
   } catch (err) {
-    // Không đọc được kết quả kiểm tra thì coi như KHÔNG nhất quán (an toàn là trên hết) — thà bỏ
-    // qua 1 script có thể vẫn ổn, còn hơn lỡ ghi vào Sheet 1 script chưa được kiểm tra kỹ
+    // If the check result can't be parsed, treat it as NOT consistent (safety first) — better to
+    // skip a script that might actually be fine than to accidentally write an unvetted script to
+    // the Sheet
     return {
       isConsistent: false,
       reason: `Không đọc được kết quả kiểm tra từ Gemini (lỗi parse JSON: ${err.message})`,

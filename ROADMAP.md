@@ -120,6 +120,73 @@ không qua Canva.
 các quote nối tiếp nhau đúng thứ tự, chữ ở phía trên khung + đọc rõ (có border/background mờ) →
 Sheet tự cập nhật đúng trạng thái.
 
+## Milestone 5c — Upload video output lên Google Drive + ghi link vào Sheet
+
+Mục tiêu: sau khi render MP4 xong, upload thẳng lên 1 thư mục Google Drive cố định rồi ghi link
+vào cột `Link video output (Canva)` (cột H, tab `Quotes`) — cột này không còn dùng cho Canva
+nữa, tái dùng luôn thay vì thêm cột mới. Cần thiết trước khi làm Milestone 6, vì runner GitHub
+Actions là máy tạm, file trong `output/` sẽ mất sau khi job chạy xong nếu không upload đi nơi
+khác.
+
+> **Đính chính sau khi test thật**: kế hoạch ban đầu định dùng chung service account (đã dùng cho
+> Sheets) để upload Drive luôn, không cần OAuth tương tác — nhưng khi chạy thật bị lỗi
+> `Service Accounts do not have storage quota`. Service Account không có dung lượng lưu trữ
+> riêng nên không tự tạo file mới được trong Drive cá nhân (Gmail thường, không phải Google
+> Workspace/Shared Drive), dù đã share thư mục với quyền Editor. Đã đổi sang xác thực **OAuth
+> bằng chính tài khoản Google của người dùng** riêng cho phần Drive (Sheets vẫn dùng service
+> account như cũ) — xem `scripts/drive-oauth-login.js` và README mục "Upload video output lên
+> Google Drive".
+
+- [ ] Bật **Google Drive API** cho cùng Google Cloud project đang dùng cho Sheets API
+- [ ] Tạo 1 thư mục trên Google Drive (thủ công), Share thư mục đó cho email service account
+      (dạng `xxx@xxx.iam.gserviceaccount.com`) với quyền **Editor**, lấy Folder ID trong URL
+- [ ] `.env.example` + `src/config.js`: thêm biến `GOOGLE_DRIVE_FOLDER_ID` (không bắt buộc phải
+      có ngay từ đầu — chỉ validate lúc thực sự dùng tính năng, giống cách `--gen-images` không
+      bắt buộc)
+- [ ] `src/drive.js`: hàm `uploadVideoToDrive(filePath, fileName)` dùng chung service account
+      (thêm scope Drive), upload file vào đúng `GOOGLE_DRIVE_FOLDER_ID`, trả về link xem file
+      (`webViewLink`). Không tự đổi quyền chia sẻ file (không set "Anyone with link") — thư mục
+      đã thuộc quyền của bạn từ trước nên bạn tự vào Drive lấy/tải video khi cần, không cần link
+      public
+- [ ] `src/sheets.js`: thêm hàm `updateQuoteOutputLink(stt, link)` ghi vào cột H tab `Quotes`
+      (tái dùng cột `Link video output (Canva)` có sẵn)
+- [ ] `src/render-quotes.js`: thêm cờ `--upload-drive` (mặc định tắt) — sau khi render 1 video
+      thành công thì upload lên Drive, rồi ghi cùng 1 link đó vào cột H cho **mọi quote STT** đã
+      được ghép vào video đó (dùng lại danh sách `sttDaDung` đã có sẵn)
+- [ ] Lỗi khi upload 1 video (mất mạng, hết quota Drive...) → log lỗi rõ ràng bằng tiếng Việt,
+      không ghi link cho video đó, vẫn tiếp tục xử lý các video khác, không dừng cả vòng lặp
+- [ ] Cập nhật `README.md`: hướng dẫn tạo + share thư mục Drive, thêm `GOOGLE_DRIVE_FOLDER_ID`
+      vào `.env`, cách dùng cờ `--upload-drive`
+
+**Nghiệm thu**: chạy `npm run render:quotes -- --upload-drive` với ít nhất 1 video có sẵn ảnh
+nền → video MP4 xuất hiện đúng trong thư mục Drive đã cấu hình → cột `Link video output` ở tab
+`Quotes` được điền đúng link cho các quote thuộc video đó → mở link, xem/tải được video.
+
+### Mở rộng: ảnh nền cũng lên Drive, Remotion tự tải lại khi thiếu cục bộ
+
+Lý do: nếu bước sinh ảnh (`--gen-images`) và bước dựng video (`render:quotes`) chạy tách rời
+nhau (ví dụ 2 lần `workflow_dispatch` riêng trên GitHub Actions, cách nhau vài ngày), ảnh trong
+`output/images/` của lần chạy trước đã mất theo runner — cần lấy lại từ Drive thay vì bắt buộc
+phải chạy `--gen-images` lại từ đầu (tốn thêm tiền Gemini Flash Image).
+
+- [ ] `src/drive.js`: đổi `uploadVideoToDrive` thành hàm dùng chung `uploadFileToDrive(filePath,
+      fileName, mimeType)`, thêm `uploadImageToDrive` (mimeType `image/png`) — ảnh và video dùng
+      chung 1 `GOOGLE_DRIVE_FOLDER_ID`, không cần thư mục/biến môi trường riêng
+- [ ] `src/drive.js`: thêm `findFileIdByName` + `downloadImageIfExists(fileName, destPath)` — tìm
+      file theo đúng tên trong `GOOGLE_DRIVE_FOLDER_ID` (không cần lưu thêm cột ID nào trên Sheet,
+      chỉ cần tên file trùng với `image_filename` đã có sẵn ở cột J)
+- [ ] `src/index.js`: thêm cờ `--upload-drive` (dùng chung với `render-quotes.js`) — khi đi kèm
+      `--gen-images` hoặc `--resume-images`, mỗi ảnh nền sinh xong sẽ được upload lên Drive luôn.
+      Lỗi upload 1 ảnh → chỉ log lại, không chặn các ảnh/quote còn lại
+- [ ] `src/render-quotes.js`: trước khi bỏ qua 1 quote vì thiếu ảnh nền cục bộ, thử tìm + tải ảnh
+      đó từ Drive về `output/images/` trước (chỉ thử khi đã cấu hình `GOOGLE_DRIVE_FOLDER_ID`,
+      không báo lỗi gây nhiễu cho người chỉ dùng ảnh cục bộ). Vẫn giữ nguyên hành vi cũ: không tìm
+      thấy (cả cục bộ lẫn Drive) → bỏ qua đúng quote đó, không chặn cả video
+
+**Nghiệm thu**: xoá thử ảnh cục bộ trong `output/images/` của 1 quote đã từng sinh + upload Drive
+trước đó, chạy lại `npm run render:quotes` → script tự tải ảnh đó về từ Drive rồi render bình
+thường, không cần chạy lại `--gen-images`.
+
 ## Milestone 6 — Tự động hoá bằng GitHub Actions (chỉ làm sau khi Milestone 1-5 đã chạy ổn định local)
 Mục tiêu: script tự chạy theo lịch, không cần bật máy tay mỗi lần. Dùng GitHub Actions vì repo
 đang Public → chạy hoàn toàn miễn phí, không cần VPS.
