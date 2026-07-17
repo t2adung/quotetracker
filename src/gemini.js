@@ -11,7 +11,13 @@ const MAX_ATTEMPTS = 2; // first call + 1 retry on timeout
 
 function isTimeoutError(err) {
   const message = (err?.message || '').toLowerCase();
-  return err?.name === 'AbortError' || message.includes('timeout') || message.includes('timed out');
+  return (
+    err?.name === 'AbortError' ||
+    message.includes('timeout') ||
+    message.includes('timed out') ||
+    message.includes('deadline_exceeded') ||
+    message.includes('deadline expired')
+  );
 }
 
 async function callGemini(youtubeUrl, tieuDe, topic) {
